@@ -1,0 +1,122 @@
+# BV1_LIN_0X_ ...
+- **BeginnX**
+  - Gemessener Beginn des Linienobjektes
+  - INIT = 255
+- **EndeX**
+  - Gemessenes bevorstehendes Ende des Linienobjektes
+  - INIT = 511
+- **VorgaengerID**
+  - ID des vorherigen Linienobjektes (bei Verkettung mehrerer Linien)
+  - INIT = 15
+- **NachfolgerID**
+  - ID des nachfolgenden Linienobjektes (bei Verkettung mehrerer Linien)
+  - INIT = 15
+- **ID**
+  - ID des Linienobjektes, konstant für eine erkannte Makierung
+  - INIT = 15
+  - KEIN = 0
+  - 01: Ego Spur L
+  - 02: Ego Spur R
+  - 03: äußere Nachbarspur L
+  - 04: äußere Nachbarspur R
+- **AbstandY**
+  - Abstand des Linienobjektes in Y-Richtung
+  - INIT = 4095
+- **GierWnkl**
+  - Gierwinkel zwischen Linienobjekt und Fzg
+  - INIT = 4095
+- **HorKruemm**
+  - Krümmung des Linienobjektes [1/m]
+    > Multiplikation des Rohwerts mit 2^-16  
+      --> vor Ausgabe des phys. Wertes erfolgt eine Multiplikation mit 2^16
+  - INIT = 4095
+- **HorKruemmAend**
+  - Änderung der Krümmung des Linienobjektes [1/m2]
+    > Multiplikation des Rohwerts mit 2^-21  
+      --> vor Ausgabe des phys. Wertes erfolgt eine Multiplikation mit 2^21
+  - INIT = 4095
+- **ExistMass**
+  - Wahrscheinlichkeit für die Existenz des Linienobjektes
+  - INIT = 63
+
+- **Breite**
+  - Breite des Linienobjektes
+  - INIT = 255
+- **Typ**
+  - 0: ***KEINE***
+  - 1: durchgezogen 实线
+  - 2: gestrichelt 虚线
+  - 3: Bot_Dots 点线
+  - 4: Fahrbahnrand 道路边缘
+  - 5: Leitplanke 防护栏
+  - 6: Bordstein 路缘石
+  - 7: Mauer 墙壁
+  - 8: Bitumenfuge 沥青缝隙
+  - 9: Sonstige
+  - 10: nicht_def
+  - 15 ***INIT***
+- **Hoehe**
+- **Farbe**
+  - 0: ***KEINE***
+  - 1: Weiß
+  - 2: Rot
+  - 3: Gelb
+  - 4: Sonstige
+  - 7: ***NICHT DEF***
+
+
+<br>  
+
+# Beispiel: (at beginning 100 frames)
+- ### BV1_LIN_01_ID = 6 $\to$ **Sonstig**
+  - Typ = 1 $\to$ **durchgezogen**
+  - AbstandY = 1.55
+  - BeginnX = ???
+  - EndeX = 87.75
+  - Breite = 0.3125
+  - Krümm = -0.0002
+  - Krümm' = -4.7683e-7
+  - GierWnkl = 0.005371
+- ### BV1_LIN_02_ID = 2 $\to$ **Ego Spur R**
+  - Typ = 2 $\to$ **gestrichelt**
+  - AbstandY = -1.55
+  - BeginnX = 0
+  - EndeX = 90
+  - Breite = -0.15625 *-> why minus value?*
+  - Krümm = -0.0002
+  - Krümm' = -4.7683e-7
+  - GierWnkl = 0.006835
+- ### BV1_LIN_03_ID = 7 $\to$ **Sonstig**
+  - Typ = 7 $\to$ **Mauer**
+  - AbstandY = 2.0
+  - BeginnX = 0
+  - EndeX = 30
+  - Krümm = -0.0002
+  - Krümm' = -1.907e-6
+  - GierWnkl = 0.00634766
+- ### BV1_LIN_04_ID = 3 $\to$ **äußere Nachbarspur L**
+  - Typ = 2 $\to$ **gestrichelt**
+  - AbstandY = -4.9
+  - BeginnX = 0
+  - EndeX = 60
+  - Krümm = -0.00024
+  - Krümm' = 0
+  - GierWnkl = 3.90625e-3
+- ### BV1_LIN_05_ID = 15 $\to$ **KEINE**
+- ### BV1_LIN_06_ID = 15 $\to$ **KEINE**
+
+
+BV1_LIN_02_:
+- BV1_LIN_02_AbstandY = -1.5546875
+- BV1_LIN_02_BeginnX = 0
+- BV1_LIN_02_Breite = -0.15625
+- BV1_LIN_02_EndeX = 82.75
+- BV1_LIN_02_ExistMass = 1
+- BV1_LIN_02_Farbe = 1
+- BV1_LIN_02_GierWnkl = 0.00683594
+- BV1_LIN_02_HorKruemm = -0.00019836
+- BV1_LIN_02_HorKruemmAend = -4.76837158e-07
+- BV1_LIN_02_ID = 2 $\to$ **Ego Spur R**
+- BV1_LIN_02_NachfolgerID = 15
+- BV1_LIN_02_Typ = 2
+- BV1_LIN_02_VorgaengerID = 15
