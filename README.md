@@ -1,6 +1,30 @@
 # Related Object Detection
 
-## Setup
+## Display
+<div align="center">
+  <img src = "snapshots/readme.png"><br>  
+  <img src = "snapshots/readme2.png"><br>  
+  Display with matplotlib<br>
+</div> 
+
+- press `SPACE` to pause the plotting
+- press `c` to capture a snapshot, save to /snapshots
+- press `ESC` to exit
+  
+### Legend
+| Marker | stands for ... |
+| --- | --- |
+| **Orange rect** | Ego car |
+| **Green line** | Ego traj |
+| **Black line** | lane and road structure |
+| **Red** | RO and RO traj |
+| **Blue** | Actor vehicles & trajs detected from Camera (BV2) |
+| **Pink** | Actor vehicles & trajs detected from Long-range Radar (LRR1) |
+
+<br>  
+<br>  
+
+# Setup & Run
 - create an conda env `ro_viz` and activate it:
     ```bash
     conda create --name ro_viz python=3.9.16
@@ -11,6 +35,7 @@
     pip install -r requirements.txt
     ```
 - create folder `/data` in root path (as defined in default args), place the `.mat` recordings in `/data`.
+  - There is already one `.mat` recording provided in the folder to run demo
 
     > Place ONLY ONE `.mat` recording in the `/data` folder every time.
 <!-- 
@@ -39,6 +64,8 @@
 
 
 - create folder `/labels` in root path, prepare to receive the generated `.json` label data.
+- create folder `/cache` in root path, prepare to save the generated `.pkl` cache data.
+- create folder `/snapshots` in root path, prepare to save the screenshots.
 
 ***
 
@@ -55,25 +82,6 @@ stay in root path, run the script `main.py`
 > - `--load_pkl`: bool, decide if save/load the preprocessed data as/from .pkl file
 
 
-## Display
-<div align="center">
-  <img src = "snapshots/readme.png"><br>  
-  <img src = "snapshots/readme2.png"><br>  
-  Display with matplotlib<br>
-</div> 
-
-> - press `SPACE` to pause the plotting
-> - press `c` to capture a snapshot, save to /snapshots
-> - press `ESC` to exit
-  
-### Legend
-- Orange rect: Ego car
-- Green line: Ego traj
-- Black line: lane and road structure
-- Red: RO and RO traj
-- Blue: Actor vehicles & trajs detected from Camera (BV2)
-- Pink: Actor vehicles & trajs detected from Long-range Radar (LRR1)
-- 
 ***
 
 ## `.pkl` cache file
@@ -81,9 +89,10 @@ stay in root path, run the script `main.py`
   > $!$ This function should be removed in the final release
 - to check `self.signal` in Debug viewer, please set the `load_pkl` as `False`, set a breakpoint at the end of `load_data` in `mat_loader.py` and run the debug.  
 <br>  
+<br>
 
-***
-## Usage of label
+
+# Usage of `.json` label
 - After run the `main.py` script, the data will be extracted and processed. The RO labeled data will be saved in logs_folder(default: `./labels`) 
 with the same name as the recording file with prefix "label_" in `.json` format.
 - The data structure of the label file is as follows:
