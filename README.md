@@ -1,9 +1,12 @@
 # Related Object Detection
 
 ## Display
+
+Use matplotlib display to check the labeling result, helps to refine the RO rules.
+
 <div align="center">
-  <img src = "snapshots/readme.png"><br>  
-  <img src = "snapshots/readme2.png"><br>  
+  <img src = "readme/readme.png"><br>  
+  <img src = "readme/readme2.png"><br>  
   Display with matplotlib<br>
 </div> 
 
@@ -93,6 +96,13 @@ stay in root path, run the script `main.py`
 
 
 # Usage of `.json` label
+
+<div align="center">
+  <img src = "readme/labeling.png"><br>  
+  How the labeling tool works<br>
+  <br>
+</div> 
+
 - After run the `main.py` script, the data will be extracted and processed. The RO labeled data will be saved in logs_folder(default: `./labels`) 
 with the same name as the recording file with prefix "label_" in `.json` format.
 - The data structure of the label file is as follows:
@@ -132,3 +142,8 @@ with the same name as the recording file with prefix "label_" in `.json` format.
 ]
 ```
 
+<div align="center">
+  <img src = "readme/training.png"><br>  
+  How the training process works<br>
+  <br>
+</div> 
