@@ -76,7 +76,7 @@ class SovereignZone:
         return max(self.min_lateral_size, min(lateral_width, self.max_lateral_size))
 
 # Traj array Preprocess
-def traj_plot(traj):
+def get_points_xy(traj):
     points_x = []
     points_y = []
     for point_dic in traj:
@@ -132,7 +132,7 @@ def matched_traj_plot(display_data, it=0):
         display_frame = display_data[it]
         global_time = display_frame['global']
         # Display - get ego traj
-        ego_x_ls, ego_y_ls = traj_plot(display_frame['ego_traj'])
+        ego_x_ls, ego_y_ls = get_points_xy(display_frame['ego_traj'])
         # Display - process actor traj
         actors_x_arr = []
         actors_y_arr = []
@@ -144,7 +144,7 @@ def matched_traj_plot(display_data, it=0):
         sensor_ls = []
         if len(display_frame['actors_traj']) != 0:
             for actor in display_frame['actors_traj']:
-                actor_x, actor_y = traj_plot(actor['actor_traj'])
+                actor_x, actor_y = get_points_xy(actor['actor_traj'])
                 actors_x_arr.append(actor_x)
                 actors_y_arr.append(actor_y)
                 ro_ls.append(actor['RO'])

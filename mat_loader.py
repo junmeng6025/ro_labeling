@@ -8,6 +8,9 @@ import argparse
 import random
 from tqdm import tqdm
 
+### DEBUG
+from debug.radar_filter import save_as_csv
+
 TIME_STEP = 0.04  # Time span of MDF/ADTF signal scan
 NR_OF_RAW_MAINPATH_POINTS = 300
 NR_OF_CAMERA_ACTORS = 10
@@ -26,6 +29,7 @@ class MatLoader:
         self.lane_generator = LaneFromMat()
         self.signals = {}
         self.ego_paths = []
+        self.ego_traj_wc = [] # FOR DEBUG
         self.actors_cart_paths = []
         self.actors_frenet_paths = []
         self.lanes = []
@@ -56,6 +60,9 @@ class MatLoader:
     
     def get_lanes(self):
         return self.lanes
+    
+    def get_ego_traj_wc(self):   # FOR DEBUG
+        return self.ego_traj_wc  # FOR DEBUG
     
     # START fea: load a batch of files ============================================================
     def find_data(self):
@@ -88,14 +95,21 @@ class MatLoader:
         for key in list(self.signals.keys()):
             if not self.signals.get(key).any():
                 self.signals.pop(key)
-        self.signals_length = min([len(self.signals[i]) for i in self.signals.keys()])
+        self.signals_length = min([len(self.signals[k]) for k in self.signals.keys()])
         print('{} frames of signal are loaded'.format(self.signals_length))
 
     def generate_ego_paths(self):
         for idx in tqdm(range(self.high - self.fpi), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
                         desc='Generate Ego trajectories for each frame:'):
-            mp_mock, compen_xy = utils.compute_mock(self.make_signal_ego_path())
-            self.ego_paths.append(utils.mock_ego_to_dictlist(mp_mock, idx))   
+            mp_mock, compen_xyyaw = utils.compute_mock(self.make_signal_ego_path())
+            # DEBUG: ego traj in world coord
+            self.ego_traj_wc.append({
+                'x': compen_xyyaw[0][0],
+                'y': compen_xyyaw[1][0],
+                'yaw': compen_xyyaw[2][0]
+            })
+            #---------------------------------
+            self.ego_paths.append(utils.mock_ego_to_dictlist(mp_mock, compen_xyyaw, idx))   
 
     def generate_actors_cart_paths(self):
         for id in tqdm(range(NR_OF_CAMERA_ACTORS), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
@@ -432,8 +446,16 @@ class MatLoader:
             pos_y_ls = []
             for i in range (0, len(path)):
                 path[i]['time'] = ego_trajectory[i]['time']
-                path[i]['pos_x'] = path[i]['pos_x'] + ego_trajectory[i]['pos_x']
-                path[i]['pos_y'] = path[i]['pos_y'] + ego_trajectory[i]['pos_y']
+                # path[i]['pos_x'] = path[i]['pos_x'] + ego_trajectory[i]['pos_x']
+                # path[i]['pos_y'] = path[i]['pos_y'] + ego_trajectory[i]['pos_y']
+                #TODO：consider rotation
+                # x_global = np.cos(oyaw) * px - np.sin(oyaw) * py + ox
+                # y_global = np.sin(oyaw) * px + np.cos(oyaw) * py + oy
+                px = path[i]['pos_x']
+                py = path[i]['pos_y']
+                path[i]['pos_x'] = math.cos(ego_trajectory[i]['yaw'])*px - math.sin(ego_trajectory[i]['yaw'])*py + ego_trajectory[i]['pos_x']
+                path[i]['pos_y'] = math.sin(ego_trajectory[i]['yaw'])*px + math.cos(ego_trajectory[i]['yaw'])*py + ego_trajectory[i]['pos_y']
+
                 pos_y_ls.append(path[i]['pos_y'])  # for convolve smooth
                 path[i]['vel_x'] = path[i]['vel_x'] + ego_trajectory[i]['vel_t'] * math.cos(ego_trajectory[i]['yaw'])
                 path[i]['vel_y'] = path[i]['vel_y'] + ego_trajectory[i]['vel_t'] * math.sin(ego_trajectory[i]['yaw'])
@@ -619,18 +641,3 @@ class LaneFromMat:
         for i, key in enumerate(self.keys):
             lane_dict[key] = lane_vals[i]
         return lane_dict
-         
-if __name__ == '__main__':
-    # visualise the ego trajectory and the actors trajectories
-    # from the given mat file
-    parser = argparse.ArgumentParser(
-        description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--data_folder', default='./data/', help='path of the mat file which will be processed')
-    parser.add_argument('--logs_folder', default='./labels/',
-                        help='output path to the folder where labeled training file will be saved.')
-    parser.add_argument('--range', default=4.0,
-                        help='range of the actor trajectory which will be processed [s].')
-    parser.add_argument('--start_frame', default=0,
-                        help='the start frame in the recording of the labeling process')
-    args = parser.parse_args()
-    paths = MatLoader(args)

@@ -95,8 +95,12 @@ class Frenet:
             else:
                 vel_s = (self.actor_pos_f[i]['pos_s'] - self.actor_pos_f[i-1]['pos_s']) / 0.04
                 vel_d = (self.actor_pos_f[i]['pos_d'] - self.actor_pos_f[i-1]['pos_d']) / 0.04
-            frenet.append({'pos_s': self.actor_pos_f[i]['pos_s'], 'pos_d': self.actor_pos_f[i]['pos_d'],
-                           'vel_s': vel_s, 'vel_d': vel_d})
+            frenet.append({
+                'pos_s': self.actor_pos_f[i]['pos_s'], 
+                'pos_d': self.actor_pos_f[i]['pos_d'],
+                'vel_s': vel_s, 
+                'vel_d': vel_d
+                })
         return frenet
 
 

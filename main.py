@@ -1,14 +1,13 @@
 import argparse
 import json
 import os
-from discriminator import discriminate
+from labeling import discriminate
 from traj_plot import matched_traj_plot
 import pickle
 from mat_loader import MatLoader
 import os
-import pickle
 
-CACHE_PATH = "cache"
+CACHE_PATH = "cache_display"
 SNAPSHOT_PATH = "snapshots"
 
 def get_files_in_folder(folder_path):
@@ -20,11 +19,11 @@ def get_files_in_folder(folder_path):
     return files_ls
 
 # Save/Load .pkl file
-def pickle_cache(file, cache_path, pkl_filename):
+def pickle_cache(data, cache_path, pkl_filename):
     file_path = os.path.join(cache_path, pkl_filename)
     print("saving matched traj to pkl ...")
     with open(file_path, 'wb') as f:
-        pickle.dump(file, f)
+        pickle.dump(data, f)
     print("Successfully saved matched traj to %s."%file_path)
 
 def pickle_load(path):
@@ -58,7 +57,7 @@ def save_labels_as_json(args, label_data, label_filename):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--data_folder', default='./data/', 
+    parser.add_argument('--data_folder', default='./mat_data/', 
                         help='path of the mat file which will be processed')
     parser.add_argument('--logs_folder', default='./labels/',
                         help='output path to the folder where labeled training file will be saved.')
@@ -66,16 +65,22 @@ if __name__ == '__main__':
                         help='range of the ego trajectory which will be processed [s].')
     parser.add_argument('--start_frame', default=0,
                         help='the start frame in the recording of the labeling process')
+                        # = 0: for first run
+                        # = 0~len: for load pkl display
     parser.add_argument('--sample_rate', default=1, 
                         help='the sample rate of the actor trajectory which will be processed')
-    parser.add_argument('--load_pkl', default=True, ###
+    parser.add_argument('--load_pkl', default=True, ###########
                         help='decide if load the preprocessed data from .pkl file')
+                        # False: for matloader debug
+                        # True:  for display
     parser.add_argument('--save_pkl', default=True, 
                         help='decide if save the preprocessed data as .pkl file')
     parser.add_argument('--rec_name', default=None, 
                         help='run a specific recording with a given name (WITHOUT .mat suffix)')
     args = parser.parse_args()
     print('Start with the args: {}'.format(args))
+
+    # "20210609_123753_BB_split_000"
 
     if args.rec_name is None:
         data_loader = MatLoader(args)
@@ -98,4 +103,5 @@ if __name__ == '__main__':
     else:
         label_data, display_data = data_process(data_loader)
         save_labels_as_json(args, label_data, record_name)
+
     matched_traj_plot(display_data, it=args.start_frame)

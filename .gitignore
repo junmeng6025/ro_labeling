@@ -7,13 +7,17 @@ __pycache__/
 *.mat
 *.dat
 *.hdf5
-*.json
+
+# labels
+labels/*.json
+
+# tensorflow model
+*.h5
 
 # temp cache
-*.pkl
-
-# screenshots
-*.png
+cache_display/*.pkl
+cache_dataset/*.pkl
+snapshots/
 
 # C extensions
 *.so

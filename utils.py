@@ -45,9 +45,10 @@ def get_relative_coord(origin, points):
     y_rel = -np.sin(oyaw) * (px - ox) + np.cos(oyaw) * (py - oy)
     yaw_rel = np.arctan2(np.sin(pyaw - oyaw), np.cos(pyaw - oyaw))  # limit to plus/minus pi
 
-    x, y = get_global_coord([ox, oy, oyaw], [x_rel, y_rel])
+    x_glb, y_glb = get_global_coord([ox, oy, oyaw], [x_rel, y_rel])
+    yaw_glb = yaw_rel + oyaw
 
-    return x_rel, y_rel, yaw_rel, [x, y]
+    return x_rel, y_rel, yaw_rel, [x_glb, y_glb, yaw_glb]
 
 
 def get_global_coord(global_p, local_p):
@@ -82,7 +83,7 @@ def compute_mock(ego_groundtruth):
     yaw = [ego_groundtruth[elem][3] for elem in range(len(ego_groundtruth))]
 
     # compen_xy represent the global coordinates computed from relative coordinates
-    x_rel, y_rel, yaw_rel, compen_xy = get_relative_coord([ox, oy, oyaw], [x, y, yaw])
+    x_rel, y_rel, yaw_rel, compen_xyyaw = get_relative_coord([ox, oy, oyaw], [x, y, yaw])
 
     mp_mock = ego_groundtruth
     for idx in range(ego_groundtruth.__len__()):
@@ -91,9 +92,9 @@ def compute_mock(ego_groundtruth):
         mp_mock[idx][3] = yaw_rel[idx]
         mp_mock[idx].append(0.0)  # dtrack - covered distance at node; unit [m] - not used at the moment
 
-    return mp_mock, compen_xy
+    return mp_mock, compen_xyyaw
 
-def mock_ego_to_dictlist(mock, global_idx):
+def mock_ego_to_dictlist(mock, compen_xyyaw, global_idx):
 
     mock_dict = []
     for idx in range(len(mock)):
@@ -105,7 +106,10 @@ def mock_ego_to_dictlist(mock, global_idx):
                           'curv': mock[idx][4],
                           'vel_t': mock[idx][5],
                           'acc_t': mock[idx][6],
-                          'distance': mock[idx][7]})
+                          'distance': mock[idx][7],
+                          'world_x': compen_xyyaw[0][idx],
+                          'world_y': compen_xyyaw[1][idx],
+                          'world_yaw': compen_xyyaw[2][idx]})
 
     return mock_dict
 
@@ -308,7 +312,7 @@ def is_in_ego_range(ego_traj, actor_traj):
 
 def convolve_smooth(interval, windowsize):
     """
-    filter for LRR actor trajectory
+    smooth outliers for LRR actor trajectories
     """
     window = np.ones(int(windowsize)) / float(windowsize)
     return np.convolve(interval, window, 'same')

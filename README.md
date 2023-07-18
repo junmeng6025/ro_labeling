@@ -1,47 +1,14 @@
-# Related Object Detection
-
-## Display
-
-Use matplotlib display to check the labeling result, helps to refine the RO rules.
-
-<div align="center">
-  <img src = "readme/readme.png"><br>  
-  <img src = "readme/readme2.png"><br>  
-  Display with matplotlib<br>
-</div> 
-
-- press `SPACE` to pause the plotting
-- press `c` to capture a snapshot, save to /snapshots
-- press `ESC` to exit
-  
-### Legend
-| Marker | stands for ... |
-| --- | --- |
-| **Orange rect** | Ego car |
-| **Green line** | Ego traj |
-| **Black line** | lane and road structure |
-| **Red** | RO and RO traj |
-| **Blue** | Actor vehicles & trajs detected from Camera (BV2) |
-| **Pink** | Actor vehicles & trajs detected from Long-range Radar (LRR1) |
-
-<br>  
-<br>  
+# Object Of Interest Detection
 
 # Setup & Run
-- create an conda env `ro_viz` and activate it:
-    ```bash
-    conda create --name ro_viz python=3.9.16
-    conda activate ro_viz
-    ```
-- cd to the project's root folder (where this README exists), install the package in requirements.txt
+- cd to the root folder (where this README exists), install the package in requirements.txt
     ```bash
     pip install -r requirements.txt
     ```
 - create folder `/data` in root path (as defined in default args), place the `.mat` recordings in `/data`.
-  - There is already one `.mat` recording provided in the folder to run demo
 
     > Place ONLY ONE `.mat` recording in the `/data` folder every time.
-<!-- 
+
     <details>
     <summary>convert .dat recordings to .mat</summary>
 
@@ -63,15 +30,11 @@ Use matplotlib display to check the labeling result, helps to refine the RO rule
       java -jar dat-reader-tool-assembly-0.0.1.jar D:\Records\dat\20210609_123753_BB_split_000.dat MLBevo_Gen2_Fx_Cluster_KMatrix_V8.15.10F_20180208_SEn.xml D:\Records\mat
       ```
 
-    </details> -->
+    </details>
 
+    <br>
 
 - create folder `/labels` in root path, prepare to receive the generated `.json` label data.
-- create folder `/cache` in root path, prepare to save the generated `.pkl` cache data.
-- create folder `/snapshots` in root path, prepare to save the screenshots.
-
-***
-
 ## Run
 stay in root path, run the script `main.py`
   ```bash
@@ -85,65 +48,160 @@ stay in root path, run the script `main.py`
 > - `--load_pkl`: bool, decide if save/load the preprocessed data as/from .pkl file
 
 
-***
+## Display
+<div align="center">
+  <img src = "readme/display.png"><br>  
+  Display with matplotlib  
+</div> 
 
+- press `SPACE` to pause the plotting
+- press `c` to capture a snapshot, save to /snapshots
+- press `ESC` to exit
+
+### Legend
+| Marker | stands for ... |
+| --- | --- |
+| **Orange rect** | Ego car |
+| **Green line** | Ego traj |
+| **Black line** | lane and road structure |
+| **Red** | RO and RO traj |
+| **Blue** | Actor vehicles & trajs detected from Camera (BV2) |
+| **Pink** | Actor vehicles & trajs detected from Long-range Radar (LRR1) |
+
+***
 ## `.pkl` cache file
 - for debug, to skip data re-generating. 
   > $!$ This function should be removed in the final release
 - to check `self.signal` in Debug viewer, please set the `load_pkl` as `False`, set a breakpoint at the end of `load_data` in `mat_loader.py` and run the debug.  
 <br>  
-<br>
 
-
-# Usage of `.json` label
-
-<div align="center">
-  <img src = "readme/labeling.png"><br>  
-  How the labeling tool works<br>
-  <br>
-</div> 
+## `.json` label file
 
 - After run the `main.py` script, the data will be extracted and processed. The RO labeled data will be saved in logs_folder(default: `./labels`) 
 with the same name as the recording file with prefix "label_" in `.json` format.
-- The data structure of the label file is as follows:
+- The data structure of the .json label file is shown in [Pipeline concept - 1. Labeling](#1-labeling)
+
+<br>
+<br>
+
+# Pipeline Concept
+
+## 0. Recording vs. Real Life
+<div align="center">
+  <img src = "readme/0_recording_vs_reallife.png" width=800><br>  
+  Labeling in recordings. Predicting in real life<br>
+  <br>
+</div> 
+
+## 1. Labeling
+
+<div align="center">
+  <img src = "readme/1_labeling.png" width=800><br>  
+  How was the label data organized<br>
+  <br>
+</div>  
+
+- The data structure of the .json label file:
 ```json
-[
-    { // labeled the actor trajectory 0 and the corresponding ego trajectory
+[ // a list of actor-ego pairs
+    { // actor 0 & corresponding ego traj
         "RO": false,
         "actor_traj": [ // actor trajectory
-            {// actor frame 0 in this trajectory
+            // actor state 0 in this trajectory
+            {
                 "time": 0.0,
                 "id": 242.0,
-                // ...
+                "type": 7.0,
+                "ref_point": 6.0,
+                "width": 2.0,
+                "length": 5.0,
+                "height": 1.5,
+                "vel_x": 38.30303851718452,
+                "vel_y": 3.612994544048159,
+                "yaw": -6.309817113248073e-10,
+                "pos_x": 117.108,
+                "pos_y": -0.6645,
+                "sensor": "camera",
+                "global": 0.04,  // -> global time matches the actor and ego trajs of the same frame
+                "pos_s": 116.22880609109846,
+                "pos_d": 0.47164890690169525,
+                "vel_s": 40.10415997182761,
                 "vel_d": 0.9844861408616179
             },
-            {// actor frame 1 in this trajectory
+            // actor state 1 in this trajectory
+            {
                 // ... 
             },
-            // ...
+            // ... other actor states
+            // 100 actor points in total
         ],
         "ego_traj": [ // corresponding ego trajectory
-            {// ego frame 0 in this trajectory
-                "global": 11.200000000000001,
+            // ego traj point 0
+            {
+                "global": 0.04,
                 "time": 0.0,
-                // ...
-                "distance": 0.0
+                "pos_x": -0.0,
+                "pos_y": 0.0,
+                "yaw": 0.0,
+                "curv": 0,
+                "vel_t": 33.875,
+                "acc_t": 0.08999999999999986,
+                "distance": 0.0,
+                "world_x": 3.0299999999999994, // 'EML_PositionX'
+                "world_y": 5.893000000000001,  // 'EML_PositionY'
+                "world_yaw": -1.8017986337985  // 'EML_YawAngle' in [rad]
             },
-            {// ego frame 1 in this trajectory
+            // ego traj point 1
+            {
                 // ... 
             },
-            // ...
+            // ... other ego traj points
+            // 300 ego points in total
         ]
     },
+    // actor 1 & corresponding ego traj
     {
-        // labeled the actor trajectory 1 and the corresponding ego trajectory
+        "RO": true,
+        "actor_traj":[
+            //... list of actor traj states
+        ],
+        "ego_traj":[
+            //... list of ego traj points
+        ]
     },
-    // ...
+    // ... other actor-ego pairs
 ]
 ```
 
+## 2. Process data for training
+
+- The 0 th point of trajectory (`ego_traj[0]`, `actor_traj[0]`) stands for the object's current state at the corresponding frame time stamp
+
 <div align="center">
-  <img src = "readme/training.png"><br>  
-  How the training process works<br>
-  <br>
-</div> 
+    <img src = "readme/2-1_current_state.png" width=800><br>  
+    traj[0] contains the information about object's current state<br>
+    <br>
+</div>  
+
+- To imitate what a driver would do in real life, i.e. discriminate whether the surrounding traffic (actor) would interefere ego trajectory and cause collision potentially basing on the observation in the previous seconds.
+
+<div align="center">
+    <img src = "readme/2-2_actor_history_sequence.png" width=800><br>  
+    Extract actor's history sequence to feed to MLP <br>
+    <br>
+</div>  
+
+- Details about coordination convertion:
+<div align="center">
+    <img src = "readme/2-3_coord_cvt.png" width=800><br>  
+    Details about coordination convertion <br>
+    <br>
+</div>  
+
+## 3. Training
+- Feed input feature and label to MLP
+<div align="center">
+    <img src = "readme/3_training.png" width=800><br>  
+    Details about coordination convertion <br>
+    <br>
+</div>  
