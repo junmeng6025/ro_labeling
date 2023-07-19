@@ -446,9 +446,6 @@ class MatLoader:
             pos_y_ls = []
             for i in range (0, len(path)):
                 path[i]['time'] = ego_trajectory[i]['time']
-                # path[i]['pos_x'] = path[i]['pos_x'] + ego_trajectory[i]['pos_x']
-                # path[i]['pos_y'] = path[i]['pos_y'] + ego_trajectory[i]['pos_y']
-                #TODO：consider rotation
                 # x_global = np.cos(oyaw) * px - np.sin(oyaw) * py + ox
                 # y_global = np.sin(oyaw) * px + np.cos(oyaw) * py + oy
                 px = path[i]['pos_x']
@@ -531,13 +528,13 @@ class EMLFromMat:
         for data_idx in range(0, data_end, step):
            main_path.append(
                [
-                   data_idx * 0.04,  # 'Time'
-                   float(x_wc[data_idx]),  # 'EML_PositionX'
-                   float(y_wc[data_idx]),  # 'EML_PositionY'
+                   data_idx * 0.04,           # 'Time'
+                   float(x_wc[data_idx]),     # 'EML_PositionX'
+                   float(y_wc[data_idx]),     # 'EML_PositionY'
                    float(data[data_idx][2]),  # 'EML_YawAngle'
-                   0,  # 'EML_Kurvature'
+                   0,                         # 'EML_Kurvature'
                    float(data[data_idx][3]),  # 'EML_VelocityX'
-                   float(data[data_idx][4])  # 'EML_AccelerationX'
+                   float(data[data_idx][4])   # 'EML_AccelerationX'
                ]
            )
         return main_path

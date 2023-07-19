@@ -105,3 +105,9 @@ if __name__ == '__main__':
         save_labels_as_json(args, label_data, record_name)
 
     matched_traj_plot(display_data, it=args.start_frame)
+
+    # Load .mat recording
+    # Labeling -> .json label file
+    # Training -> .h5 model
+    # Predict
+    # Display: Validate prediction vs. labeling

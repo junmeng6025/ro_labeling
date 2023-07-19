@@ -1,4 +1,7 @@
 import argparse
+import json
+import pickle
+import numpy as np
 import tensorflow as tf
 from keras.models import Sequential, load_model
 from keras.layers import Dense, BatchNormalization, Activation, Dropout
@@ -7,10 +10,25 @@ from keras import optimizers
 import datetime as dt
 import os
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from sample_loader import *
+# from sample_loader import *
 from timer import Timer
 import matplotlib.pyplot as plt
+from json_loader import json_to_dataset
 
+# FOR DEV: pkl cache ==============================================================
+def pickle_cache(data, cache_path, pkl_filename):
+    file_path = os.path.join(cache_path, pkl_filename)
+    print("saving matched traj to pkl ...")
+    with open(file_path, 'wb') as f:
+        pickle.dump(data, f)
+    print("Successfully saved matched traj to %s."%file_path)
+
+
+def pickle_load(path):
+    print("loading matched traj from pkl ...")
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+# ================================================================================
 
 class MLP():
     def __init__(self):
@@ -124,6 +142,7 @@ class MLP():
             'test_acc': test_accuracy
         }
 
+# Utils
 def cvt_nparray(dataset, k_item):
     print("Converting feature vectors into nparray ...")
     timer = Timer()
@@ -158,38 +177,28 @@ if __name__ == '__main__':
                         help='load pre-processed data from pkl')
     parser.add_argument('--json_folder', default='./labels/', 
                         help='path of the json file containing labels')
-    parser.add_argument('--is_train', default=False, 
-                        help='train an MLP model from samples')
-    parser.add_argument('--is_pred', default=True, 
-                        help='load an existing MLP model to do prediction')
-    parser.add_argument('--model_path', default="saved_models/tf/20230707_143235_ep128_bs64.h5", 
+    parser.add_argument('--mlp_mode', default="pred", # MLP mode
+                        help='MUST BE "train" OR "pred"')
+    parser.add_argument('--model_path', default="saved_models/tf/20230719_164442_ep128_bs64.h5", 
                         help='path to an existing .h5 model file')
     args = parser.parse_args()
     print('Start with the args: {}'.format(args))
 
     # Load configs
     configs = json.load(open('configs.json', 'r'))
-    model_configs = configs['model_configs']
-    data_configs = configs['data_configs']
+    # model_configs = configs['model_configs']
+    # data_configs = configs['data_configs']
 
-    # dataset_name = "BB123753"
-    dataset_name = "BB"
+    dataset_name = "BB123753"
+    # dataset_name = "BB"
     # dataset_name = "full"
 
     if not args.is_dataset_pkl:
         # Load data ################################################################################ 
-        folder = "labels"
-        files_ls = [
-            "label_20210609_122855_BB_split_000.json",
-            "label_20210609_123753_BB_split_000.json"
-        ]
-        
-        cam_dataset, lrr_dataset = read_jsons(folder, files_ls)
-        cam_train_set, cam_test_set = samples_to_train(cam_dataset, 
-                                                       seq_len=data_configs['seq_len'], 
-                                                       split_ratio=data_configs['split_ratio'], 
-                                                       batch_size=model_configs['batch_size'], 
-                                                       input_size=model_configs['input_size'])
+        json_folder = "labels"
+        json_fname = "label_20210609_123753_BB_split_000.json"
+
+        cam_train_set, cam_test_set = json_to_dataset(json_folder, json_fname, configs, sensor="camera")
 
         x_train = cam_train_set['x']
         y_train = cam_train_set['y']
@@ -197,34 +206,41 @@ if __name__ == '__main__':
         y_test = cam_test_set['y']
 
         # Save pkl
-        pickle_cache(x_train, "cache_dataset", "%s_x_train.pkl"%dataset_name)
-        pickle_cache(y_train, "cache_dataset", "%s_y_train.pkl"%dataset_name)
-        pickle_cache(x_test, "cache_dataset", "%s_x_test.pkl"%dataset_name)
-        pickle_cache(y_test, "cache_dataset", "%s_y_test.pkl"%dataset_name)
+        dataset_dict = {
+            "x_train": x_train,
+            "y_train": y_train,
+            "x_test": x_test,
+            "y_test": y_test 
+        }
+        pickle_cache(dataset_dict, "cache_dataset", "dataset_%s.pkl"%dataset_name)
     else:
         # Load pkl ################################################################################
-        x_train = pickle_load("cache_dataset/%s_x_train.pkl"%dataset_name)
-        y_train = pickle_load("cache_dataset/%s_y_train.pkl"%dataset_name)
-        x_test = pickle_load("cache_dataset/%s_x_test.pkl"%dataset_name)
-        y_test = pickle_load("cache_dataset/%s_y_test.pkl"%dataset_name)
+        loaded_dict = pickle_load("cache_dataset/dataset_%s.pkl"%dataset_name)
+        x_train = loaded_dict['x_train']
+        y_train = loaded_dict['y_train']
+        x_test = loaded_dict['x_test']
+        y_test = loaded_dict['y_test']
 
     # Model
     mlp = MLP()
-    if args.is_train:
+    if args.mlp_mode == "train":
+        print("\n[Model] Mode: TRAIN\n")
         # Train
-        mlp.build_model(model_configs)
+        mlp.build_model(configs)
         mlp.train(x_train, y_train)
         # Eval
         mlp.eval(x_test, y_test)
         mlp.disp_history()
-    if args.is_pred:
+
+    if args.mlp_mode == "pred":
+        print("\n[Model] Mode: PRED\n")
         # Pred
         model_path = args.model_path
         mlp.load_model(model_path)
     
         # >>>>> deploy to display later
         y_pred = mlp.pred_single_sample(x_test[0])
-        y_pred_b = mlp.pred_single_sample(x_test[0], b_cvt_tf=True, th=data_configs['conf_th'])
+        y_pred_b = mlp.pred_single_sample(x_test[0], b_cvt_tf=True, th=configs['conf_th'])
 
         # >>>>> TEST: convert result 0/1 back to F/T
         y_pred_batch =mlp.pred_batch_samples(x_test)

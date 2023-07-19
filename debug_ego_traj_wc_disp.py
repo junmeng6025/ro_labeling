@@ -279,7 +279,7 @@ def get_actor_history_seq(frame_ls, seq_len, timestep=0.04):
                 for ego_point in frame_seq[-1]['ego_traj']
             ]
             # calc every actor's frenet rel to current ego traj
-            actor_history_seq = [frame['actor_current'] for frame in frame_seq]
+            actor_history_seq = [frame['actor_current'] for frame in frame_seq] # index from [0] to [len-1]: from history to current
             for actor in actor_history_seq:
                 actor_xy_loc = {
                     'x': actor['glb_x'],
@@ -289,6 +289,19 @@ def get_actor_history_seq(frame_ls, seq_len, timestep=0.04):
                 # add frenet result to actor_dicts
                 actor['pos_d'] = actor_frenet['pos_d']
                 actor['pos_s'] = actor_frenet['pos_s']
+            
+            # calc every actor's frenet velocity
+            for j in range(len(actor_history_seq)):
+                # add frenet velocity to actor_dicts
+                if j == len(actor_history_seq)-1: # padding the last node
+                    vel_s = (actor_history_seq[j]['pos_s'] - actor_history_seq[j-1]['pos_s']) / timestep
+                    vel_d = (actor_history_seq[j]['pos_d'] - actor_history_seq[j-1]['pos_d']) / timestep
+                else:
+                    vel_s = (actor_history_seq[j+1]['pos_s'] - actor_history_seq[j]['pos_s']) / timestep
+                    vel_d = (actor_history_seq[j+1]['pos_d'] - actor_history_seq[j]['pos_d']) / timestep
+                # add frenet velocity to actor_dicts
+                actor_history_seq[j]['vel_d'] = vel_d
+                actor_history_seq[j]['vel_s'] = vel_s
 
             actorseq_egotraj_pairs.append({
                 'ro': frame_seq[-1]['ro_label'],
