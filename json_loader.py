@@ -1,6 +1,3 @@
-import argparse
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import os
 import numpy as np
 import json
@@ -199,7 +196,6 @@ class JsonLoader():
                         ]
                     })
 
-
     def extend_glb_pose(self):
         print("\n[Dataset] Extend frame data: ego's and actor's GLOBAL POSE ...")
         ego_start_tuple = (
@@ -240,13 +236,6 @@ class JsonLoader():
                     'yaw_glb': frame['ego_traj'][0]['glb_yaw']
                 }
             )
-
-
-    # def split_on_sensors(self):
-    #     frame_ls_cam = [frame for frame in self.frame_ls_json if frame['sensor']=='camera']
-    #     frame_ls_lrr = [frame for frame in self.frame_ls_json if frame['sensor']=='lrr']
-    #     return frame_ls_cam, frame_ls_lrr
-    
 
     def gen_actor_history_seq(self, seq_len=SEQ_LEN, timestep=TIME_STEP):
         """
@@ -429,8 +418,8 @@ def json_to_dataset(json_folder, json_fname, configs, sensor):
     return train_xy, test_xy
 
 
+# Debug test
 if __name__ == "__main__":
-    # Debug
     # json_folder = "C:\\Users\\SLOFUJ7\\Desktop\\Object_Of_Interest_Detection\\labels"
     json_folder = "labels"
     json_fname = "label_20210609_123753_BB_split_000.json"

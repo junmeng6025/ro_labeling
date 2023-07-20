@@ -7,9 +7,6 @@ import pickle
 from mat_loader import MatLoader
 import os
 
-CACHE_PATH = "cache_display"
-SNAPSHOT_PATH = "snapshots"
-
 def get_files_in_folder(folder_path):
     files_ls = []
     for file_name in os.listdir(folder_path):
@@ -45,7 +42,7 @@ def data_process(data_loader):
     return label_data, display_data
 
 def save_labels_as_json(args, label_data, label_filename):
-    logfile_path = args.logs_folder + 'label_{0}.json'.format(label_filename)
+    logfile_path = args.json_folder + 'label_{0}.json'.format(label_filename)
     if not os.path.exists(logfile_path):
         print('Saving label data ...')
         with open(logfile_path, 'w') as f:
@@ -57,9 +54,9 @@ def save_labels_as_json(args, label_data, label_filename):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--data_folder', default='./mat_data/', 
+    parser.add_argument('--mat_folder', default='./mat_data/', 
                         help='path of the mat file which will be processed')
-    parser.add_argument('--logs_folder', default='./labels/',
+    parser.add_argument('--json_folder', default='./labels/',
                         help='output path to the folder where labeled training file will be saved.')
     parser.add_argument('--range', default=12.0,
                         help='range of the ego trajectory which will be processed [s].')
@@ -76,11 +73,13 @@ if __name__ == '__main__':
     parser.add_argument('--save_pkl', default=True, 
                         help='decide if save the preprocessed data as .pkl file')
     parser.add_argument('--rec_name', default=None, 
-                        help='run a specific recording with a given name (WITHOUT .mat suffix)')
+                        help='run a specific recording with a given name (WITHOUT .pkl suffix)')
     args = parser.parse_args()
     print('Start with the args: {}'.format(args))
 
     # "20210609_123753_BB_split_000"
+    CACHE_PATH = "cache_display"
+    SNAPSHOT_PATH = "snapshots"
 
     if args.rec_name is None:
         data_loader = MatLoader(args)

@@ -1,11 +1,11 @@
 # Object Of Interest Detection
 
-# Setup & Run
+# Setup
 - cd to the root folder (where this README exists), install the package in requirements.txt
     ```bash
     pip install -r requirements.txt
     ```
-- create folder `/data` in root path (as defined in default args), place the `.mat` recordings in `/data`.
+- create folder `/mat_data` in root path (as defined in default args), paste ONE `.mat` recording in it.
 
     > Place ONLY ONE `.mat` recording in the `/data` folder every time.
 
@@ -35,20 +35,40 @@
     <br>
 
 - create folder `/labels` in root path, prepare to receive the generated `.json` label data.
-## Run
-stay in root path, run the script `main.py`
-  ```bash
-  python main.py
-  ```
-> ### optional args
-> - `--data_folder`: redirect the data path, where `.mat` recordings to be loaded.
-> - `--logs_folder`: redirect the label path, where `.json` results to be saved.
-> - `--range`: the length of the ego trajectory in the future to be the reference in coordinate transformation, it should cover the actor trajectory
-> - `--sample_rate`: downsample the actor trajectory, for test it may be set to a larger number to speed up the process
-> - `--load_pkl`: bool, decide if save/load the preprocessed data as/from .pkl file
+- create folder `/cache_display` in root path, prepare to receive the generated `.pkl` display data.
+- create folder `/snapshots` in root path, prepare to receive the `.png` display snapshots.
+- create folder `/cache_dataset` in root path, prepare to receive the `.pkl` pre-processed datasets.
+- create folder `/saved_models/tf` in root path, prepare to receive the `.h5` MLP models.
 
 
-## Display
+
+# Run
+## `labeling.py`
+- Load `.mat` recording via **MatLoader()** in `mat_loader.py`
+- Discriminate actors according RO-rules, generate label data and display data
+  - label data saved as `.json` file in `/labels` folder
+  - display data saved as `.pkl` file in `/cache_display` folder
+- Data structure & Concept: [Pipeline concept - 1. Labeling](#1-labeling)
+
+## `mlp_tf.py`
+- Load `.json` label via **JsonLoader()** in `json_loader.py`
+- Re-process data frames as **train_set** and **test_set**, feasible to MLP
+  - Data structure & Concept: [Pipeline concept - 1. Process data for training](#2-process-data-for-training)
+***
+- mlp_mode = `"train"`: 
+  - Train the MLP model with **train_set**
+  - MLP model saved as `.h5` file in the folder `/saved_models/tf`
+- mlp_mode = `"pred"`: 
+  - Load `.h5` model, evaluate the model with **test_set**
+  - predict samples in **x_test**, get pred result **pred_ls**
+  - compare **pred_ls** with **y_test**
+  - plot evaluation metrics in terminal
+
+## `traj_plot.py`
+- Display labeling result
+  > **TODO:**  
+  > display MLP prediction result, compare with ground truth of RO-rules
+
 <div align="center">
   <img src = "readme/display.png"><br>  
   Display with matplotlib  
@@ -69,17 +89,21 @@ stay in root path, run the script `main.py`
 | **Pink** | Actor vehicles & trajs detected from Long-range Radar (LRR1) |
 
 ***
-## `.pkl` cache file
-- for debug, to skip data re-generating. 
-  > $!$ This function should be removed in the final release
-- to check `self.signal` in Debug viewer, please set the `load_pkl` as `False`, set a breakpoint at the end of `load_data` in `mat_loader.py` and run the debug.  
-<br>  
+<br>
+<br>
 
-## `.json` label file
+## `main.py` -- [in dev]
+stay in root path, run the script `main.py`
+  ```bash
+  python main.py
+  ```
+> ### optional args
+> - `--data_folder`: redirect the data path, where `.mat` recordings to be loaded.
+> - `--logs_folder`: redirect the label path, where `.json` results to be saved.
+> - `--range`: the length of the ego trajectory in the future to be the reference in coordinate transformation, it should cover the actor trajectory
+> - `--sample_rate`: downsample the actor trajectory, for test it may be set to a larger number to speed up the process
+> - `--load_pkl`: bool, decide if save/load the preprocessed data as/from .pkl file
 
-- After run the `main.py` script, the data will be extracted and processed. The RO labeled data will be saved in logs_folder(default: `./labels`) 
-with the same name as the recording file with prefix "label_" in `.json` format.
-- The data structure of the .json label file is shown in [Pipeline concept - 1. Labeling](#1-labeling)
 
 <br>
 <br>

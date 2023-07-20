@@ -29,7 +29,7 @@ class MatLoader:
         self.lane_generator = LaneFromMat()
         self.signals = {}
         self.ego_paths = []
-        self.ego_traj_wc = [] # FOR DEBUG
+        # self.ego_traj_wc = [] # FOR DEBUG
         self.actors_cart_paths = []
         self.actors_frenet_paths = []
         self.lanes = []
@@ -61,21 +61,21 @@ class MatLoader:
     def get_lanes(self):
         return self.lanes
     
-    def get_ego_traj_wc(self):   # FOR DEBUG
-        return self.ego_traj_wc  # FOR DEBUG
+    # def get_ego_traj_wc(self):   # FOR DEBUG
+    #     return self.ego_traj_wc  # FOR DEBUG
     
     # START fea: load a batch of files ============================================================
-    def find_data(self):
-        filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.data_folder, y='mat'))
-        if len(filepath_ls):
-            self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]
-            print('Process data: {}'.format(filepath_ls[0]))
-        else:
-            sys.exit('No .mat file found')
+    # def find_data(self):
+    #     filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.mat_folder, y='mat'))
+    #     if len(filepath_ls):
+    #         self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]
+    #         print('Process data: {}'.format(filepath_ls[0]))
+    #     else:
+    #         sys.exit('No .mat file found')
     # END fea: load a batch of files ==============================================================
 
     def load_data(self):
-        filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.data_folder, y='mat'))
+        filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.mat_folder, y='mat'))
         if len(filepath_ls):
             self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]  # CURRENT: load only one file, cannot handle a batch of files
             print('Process data: {}'.format(filepath_ls[0]))
@@ -96,24 +96,24 @@ class MatLoader:
             if not self.signals.get(key).any():
                 self.signals.pop(key)
         self.signals_length = min([len(self.signals[k]) for k in self.signals.keys()])
-        print('{} frames of signal are loaded'.format(self.signals_length))
+        print('[Mat loader] {} frames of signal are loaded'.format(self.signals_length))
 
     def generate_ego_paths(self):
-        for idx in tqdm(range(self.high - self.fpi), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
-                        desc='Generate Ego trajectories for each frame:'):
+        for idx in tqdm(range(self.high - self.fpi), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
+                        desc='[Mat loader] Generate Ego trajectories for each frame:'):
             mp_mock, compen_xyyaw = utils.compute_mock(self.make_signal_ego_path())
-            # DEBUG: ego traj in world coord
-            self.ego_traj_wc.append({
-                'x': compen_xyyaw[0][0],
-                'y': compen_xyyaw[1][0],
-                'yaw': compen_xyyaw[2][0]
-            })
-            #---------------------------------
+            # # DEBUG: ego traj in world coord
+            # self.ego_traj_wc.append({
+            #     'x': compen_xyyaw[0][0],
+            #     'y': compen_xyyaw[1][0],
+            #     'yaw': compen_xyyaw[2][0]
+            # })
+            # #---------------------------------
             self.ego_paths.append(utils.mock_ego_to_dictlist(mp_mock, compen_xyyaw, idx))   
 
     def generate_actors_cart_paths(self):
-        for id in tqdm(range(NR_OF_CAMERA_ACTORS), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
-                       desc='Generate Actors trajectories from BV2:'):
+        for id in tqdm(range(NR_OF_CAMERA_ACTORS), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
+                       desc='[Mat loader] Generate Actors trajectories from BV2:'):
             ### DEBUG
             # actor_path_bv2 = self.make_signal_actor_path(id, 'BV2', b_smooth=False)
             # save_as_csv(actor_path_bv2, csv_folder="debug/bv2_traj", sensor='bv2')
@@ -121,8 +121,8 @@ class MatLoader:
             ### ORIGIN
             self.actors_cart_paths.extend(self.make_signal_actor_path(id, 'BV2', b_smooth=False))
 
-        for id in tqdm(range(NR_OF_LRR_ACTORS), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
-                       desc='Generate Actors trajectories from LRR1:'):
+        for id in tqdm(range(NR_OF_LRR_ACTORS), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
+                       desc='[Mat loader] Generate Actors trajectories from LRR1:'):
             ### DEBUG
             # actor_path_lrr = self.make_signal_actor_path(id, 'LRR1', b_smooth=True)
             # save_as_csv(actor_path_lrr, csv_folder="debug/lrr_traj", sensor='lrr')
@@ -131,8 +131,8 @@ class MatLoader:
             self.actors_cart_paths.extend(self.make_signal_actor_path(id, 'LRR1', b_smooth=True))
     
     def generate_lanes(self):
-        for id_chn in tqdm(range(NR_OF_LANE_CHN), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
-                        desc='Generate Lane set for each frame:'):
+        for id_chn in tqdm(range(NR_OF_LANE_CHN), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
+                        desc='[Mat loader] Generate Lane set for each frame:'):
             self.lanes.append(self.make_signal_lane(id_chn))
 
     def collect_sensor_config(self, sensor):
@@ -257,7 +257,7 @@ class MatLoader:
 
                         # extract features from the data
                         data = self.extract_features(data, sensor)
-                        data['global'] = cursor * TIME_STEP
+                        data['global'] = cursor * TIME_STEP  # BUG: might occur 327.840000000003, which supposed to be 327.84
                         actor_path_data.append(data)
                         # if the length of the fragment is reached then truncate the path
                         if len(actor_path_data) >= length / TIME_STEP: # 4 seconds , 100 frames
@@ -466,8 +466,8 @@ class MatLoader:
         return actors_path_data
     
     def generate_actors_frenet_paths(self):
-        pbar = tqdm(total=len(self.actors_cart_paths), bar_format='{desc:<50}{percentage:3.0f}%|{bar:20}{r_bar}', \
-                    desc='Update actor trajectory to frenet coordinate:')
+        pbar = tqdm(total=len(self.actors_cart_paths), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
+                    desc='[Mat loader] Update actor traj to frenet coordinate:')
         for cart_traj in self.actors_cart_paths:
             frame = int(cart_traj[0]['global'] / 0.04)
             ego_traj = self.ego_paths[frame]

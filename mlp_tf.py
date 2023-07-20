@@ -2,18 +2,19 @@ import argparse
 import json
 import pickle
 import numpy as np
+from json_loader import json_to_dataset
 import tensorflow as tf
 from keras.models import Sequential, load_model
 from keras.layers import Dense, BatchNormalization, Activation, Dropout
 from keras import losses
 from keras import optimizers
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import datetime as dt
 import os
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-# from sample_loader import *
 from timer import Timer
 import matplotlib.pyplot as plt
-from json_loader import json_to_dataset
+
 
 # FOR DEV: pkl cache ==============================================================
 def pickle_cache(data, cache_path, pkl_filename):
@@ -28,8 +29,9 @@ def pickle_load(path):
     print("loading matched traj from pkl ...")
     with open(path, 'rb') as f:
         return pickle.load(f)
-# ================================================================================
 
+
+# Class Multi-Layer-Perceptron =========================================================
 class MLP():
     def __init__(self):
         self.model = Sequential()
@@ -66,9 +68,7 @@ class MLP():
                              kernel_initializer=tf.initializers.glorot_uniform()))
         self.model.add(Activation('sigmoid'))
 
-        # loss_fn = losses.SparseCategoricalCrossentropy()
         loss_fn = losses.BinaryCrossentropy()
-        # optimizer = optimizers.Adam(learning_rate=self.configs['lr'])
         optimizer = optimizers.RMSprop(learning_rate=self.configs['lr'])
 
         self.model.compile(optimizer=optimizer, loss=loss_fn, metrics=['accuracy'])
@@ -142,7 +142,7 @@ class MLP():
             'test_acc': test_accuracy
         }
 
-# Utils
+# Utils ================================================================================
 def cvt_nparray(dataset, k_item):
     print("Converting feature vectors into nparray ...")
     timer = Timer()
@@ -153,51 +153,72 @@ def cvt_nparray(dataset, k_item):
     timer.stop()
     return arr
 
-def evaluate(pred_b_arr, gt_b_arr):
-    tp = 0
-    fp = 0
-    fn = 0
-    total = len(gt_b_arr)
-    for i in range(total):
-        if pred_b_arr[i] and gt_b_arr[i]:
-            tp += 1
-        if pred_b_arr[i] and not gt_b_arr[i]:
-            fp += 1
-        if not pred_b_arr[i] and gt_b_arr[i]:
-            fn += 1
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
-    return precision, recall
+# def evaluate(pred_ls, gt_ls, th_for_true):
+#     pred_b_ls = [y_pred > th_for_true for y_pred in pred_ls]
+#     pred_t_count = sum(pred_b_ls)
+#     gt_b_ls = [y_gt > th_for_true for y_gt in gt_ls]
+#     gt_t_count = sum(gt_b_ls)
+#     print("[Eval] Sum of T\n\t- in PRED:\t %d;\n\t- in GT:\t %d"%(pred_t_count, gt_t_count))
+
+#     tp = 0
+#     fp = 0
+#     fn = 0
+#     total = len(gt_b_ls)
+#     for i in range(total):
+#         if pred_b_ls[i] and gt_b_ls[i]:
+#             tp += 1
+#         if pred_b_ls[i] and not gt_b_ls[i]:
+#             fp += 1
+#         if not pred_b_ls[i] and gt_b_ls[i]:
+#             fn += 1
+#     precision = tp / (tp + fp)
+#     recall = tp / (tp + fn)
+#     f1 = 2*(precision*recall)/(precision+recall)
+#     print("[Eval] Metrics:\n\t- Precision:\t %.5f\n\t- Recall:\t %.5f\n\t- F1 score:\t %.5f"%(precision, recall, f1))
+#     return precision, recall, f1
+
+def evaluate_sklearn(pred_ls, gt_ls, th_for_true):
+    pred_b_ls = [y_pred > th_for_true for y_pred in pred_ls]
+    pred_t_count = sum(pred_b_ls)
+    gt_b_ls = [y_gt > th_for_true for y_gt in gt_ls]
+    gt_t_count = sum(gt_b_ls)
+    print("[Eval] Sum of T\n\t- in PRED:\t %d;\n\t- in GT:\t %d"%(pred_t_count, gt_t_count))
+
+    eval_metrics = {
+        "accuracy": accuracy_score(gt_b_ls, pred_b_ls),
+        "precision": precision_score(gt_b_ls, pred_b_ls),
+        "recall": recall_score(gt_b_ls, pred_b_ls),
+        "f1": f1_score(gt_b_ls, pred_b_ls)
+    }
+
+    print("[Eval] Sklearn Metrics:\n\t- Accuracy:\t %.5f\n\t- Precision:\t %.5f\n\t- Recall:\t %.5f\n\t- F1 score:\t %.5f"\
+              %(eval_metrics['accuracy'], eval_metrics['precision'], eval_metrics['recall'],eval_metrics['f1']))
+    return eval_metrics
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--is_dataset_pkl', default=True, 
+    parser.add_argument('--is_dataset_pkl', default=True, # whether load dataset from pkl
                         help='load pre-processed data from pkl')
     parser.add_argument('--json_folder', default='./labels/', 
                         help='path of the json file containing labels')
     parser.add_argument('--mlp_mode', default="pred", # MLP mode
                         help='MUST BE "train" OR "pred"')
-    parser.add_argument('--model_path', default="saved_models/tf/20230719_164442_ep128_bs64.h5", 
+    parser.add_argument('--model_path', default="saved_models/tf/20230719_174523_ep128_bs64.h5", 
                         help='path to an existing .h5 model file')
     args = parser.parse_args()
     print('Start with the args: {}'.format(args))
 
     # Load configs
     configs = json.load(open('configs.json', 'r'))
-    # model_configs = configs['model_configs']
-    # data_configs = configs['data_configs']
 
-    dataset_name = "BB123753"
-    # dataset_name = "BB"
-    # dataset_name = "full"
+    json_folder = "labels"
+    fname = "20210609_123753_BB_split_000"
+    json_fname = "%s.json"%fname
 
     if not args.is_dataset_pkl:
         # Load data ################################################################################ 
-        json_folder = "labels"
-        json_fname = "label_20210609_123753_BB_split_000.json"
-
         cam_train_set, cam_test_set = json_to_dataset(json_folder, json_fname, configs, sensor="camera")
 
         x_train = cam_train_set['x']
@@ -212,10 +233,10 @@ if __name__ == '__main__':
             "x_test": x_test,
             "y_test": y_test 
         }
-        pickle_cache(dataset_dict, "cache_dataset", "dataset_%s.pkl"%dataset_name)
+        pickle_cache(dataset_dict, "cache_dataset", "dataset_%s.pkl"%fname)
     else:
         # Load pkl ################################################################################
-        loaded_dict = pickle_load("cache_dataset/dataset_%s.pkl"%dataset_name)
+        loaded_dict = pickle_load("cache_dataset/dataset_%s.pkl"%fname)
         x_train = loaded_dict['x_train']
         y_train = loaded_dict['y_train']
         x_test = loaded_dict['x_test']
@@ -242,19 +263,8 @@ if __name__ == '__main__':
         y_pred = mlp.pred_single_sample(x_test[0])
         y_pred_b = mlp.pred_single_sample(x_test[0], b_cvt_tf=True, th=configs['conf_th'])
 
-        # >>>>> TEST: convert result 0/1 back to F/T
-        y_pred_batch =mlp.pred_batch_samples(x_test)
-        conf_th = 0.80
-
-        y_pred_batch_bool = [y_pred > conf_th for y_pred in y_pred_batch]
-        pred_t_count = sum(y_pred_batch_bool)
-
-        y_gt_batch_bool = [y_gt > conf_th for y_gt in y_test]
-        gt_t_count = sum(y_gt_batch_bool)
-        print("[Eval] Num of T in PRED: %d; in GT: %d"%(pred_t_count, gt_t_count))
-
-        # >>>>> evaluate
-        precision, recall = evaluate(y_pred_batch_bool, y_gt_batch_bool)
-        print("[Eval] Metrics:\nPrecision: %.3f\nRecall: %.3f"%(precision, recall))
+        # >>>>> evaluate sklearn:
+        y_pred_batch = mlp.pred_batch_samples(x_test)
+        eval_metrics = evaluate_sklearn(y_pred_batch, y_test, configs['conf_th'])
 
     print("End")

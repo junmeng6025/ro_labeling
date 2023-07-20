@@ -1,9 +1,17 @@
+import argparse
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import keyboard
 import lane
 from datetime import datetime
 import os
+import pickle
+
+# Load .pkl file
+def pickle_load(path):
+    print("loading matched traj from pkl ...")
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
 # Capture plot
 def get_time():
@@ -142,6 +150,9 @@ def matched_traj_plot(display_data, it=0):
         lw_ls = []
         rules123_ls = []
         sensor_ls = []
+
+        global_time_ls = [] # DEBUG
+
         if len(display_frame['actors_traj']) != 0:
             for actor in display_frame['actors_traj']:
                 actor_x, actor_y = get_points_xy(actor['actor_traj'])
@@ -153,6 +164,7 @@ def matched_traj_plot(display_data, it=0):
                 lw_ls.append((actor['actor_traj'][0]['length'], actor['actor_traj'][0]['width']))
                 rules123_ls.append(actor['rules123'])
                 sensor_ls.append(actor['actor_traj'][0]['sensor'])
+                global_time_ls.append(actor['actor_traj'][0]['global'])
         # Display - process lane geometry
         lane_channels = []
         lane_gen = lane.LaneGenerator()
@@ -173,7 +185,8 @@ def matched_traj_plot(display_data, it=0):
         ax.set_ylabel('d [m]', ha='right', y=1.1, fontsize=12)
         plt.gca().set_aspect("equal")
         fig.suptitle('iteration: %d / %d;  global time: %.2f [s]'%(it, len(display_data), global_time), fontsize=14, fontweight='bold')
-        plt.text(0, -0.50, "RO rules:\n r1: keep in ego traj.\n r2: cut in and keep in ego traj.\n r3: close to ego.", ha='left', va='top', transform=ax.transAxes, fontsize=10)
+        plt.text(0, -0.50, "RO rules:\n r1: keep in ego traj.\n r2: cut in and keep in ego traj.\n r3: close to ego.",
+                 ha='left', va='top', transform=ax.transAxes, fontsize=10)
         plt.text(0, -2, "Press C to capture current plot.\nPress SPACE to pause/continue.", ha='left', va='bottom', transform=ax.transAxes, fontsize=8)
         
         # Plot ego traj
@@ -190,19 +203,27 @@ def matched_traj_plot(display_data, it=0):
         # ax.add_patch(sz_marker)
 
         # Plot actor traj
-        actors_len = len(actors_x_arr)
+        actors_len = len(display_frame['actors_traj'])
         if actors_len != 0:
             ro_msg = ""
             for i in range(actors_len):
                 if ro_ls[i]:
-                    plt.plot(actors_x_arr[i], actors_y_arr[i], label = "actor %02d"%i, marker = "s", markerfacecolor='none', markeredgecolor="red", markeredgewidth=1)
-                    plt.text(actors_x_arr[i][0], actors_y_arr[i][0], '[%d]: (%.2f, %.2f)'%(objID_ls[i], ds_ls[i][0], ds_ls[i][1]), fontweight='bold', ha='left', va='bottom')
-                    actor_marker = patches.Rectangle((actors_x_arr[i][0]-lw_ls[i][0]/2, actors_y_arr[i][0]-lw_ls[i][1]/2), lw_ls[i][0], lw_ls[i][1], edgecolor='red', linewidth=2, facecolor=ACTOR_COLOR[sensor_ls[i]])
-                    ro_msg += "\nRO[%01d]: ID %d; d: %.2f, s: %.2f; Rules: r1[%s], r2[%s], r3[%s]."%(i, objID_ls[i], ds_ls[i][0], ds_ls[i][1], rules123_ls[i][0],rules123_ls[i][1],rules123_ls[i][2])
+                    plt.plot(actors_x_arr[i], actors_y_arr[i], label = "actor %02d"\
+                             %i, marker = "s", markerfacecolor='none', markeredgecolor="red", markeredgewidth=1)
+                    
+                    plt.text(actors_x_arr[i][0], actors_y_arr[i][0], '[%d]: (%.2f, %.2f)'\
+                             %(objID_ls[i], ds_ls[i][0], ds_ls[i][1]), fontweight='bold', ha='left', va='bottom')
+                    
+                    actor_marker = patches.Rectangle((actors_x_arr[i][0]-lw_ls[i][0]/2, actors_y_arr[i][0]-lw_ls[i][1]/2), 
+                                                     lw_ls[i][0], lw_ls[i][1], edgecolor='red', linewidth=2, facecolor=ACTOR_COLOR[sensor_ls[i]])
+                    
+                    ro_msg += "\nRO[%01d]: ID %d; Global:%.2f[s]; (d: %.2f, s: %.2f);   Rules: r1[%s], r2[%s], r3[%s]."\
+                              %(i, objID_ls[i], global_time_ls[i], ds_ls[i][0], ds_ls[i][1], rules123_ls[i][0],rules123_ls[i][1],rules123_ls[i][2])
                 else:
                     plt.plot(actors_x_arr[i], actors_y_arr[i], label = "actor %02d"%i, marker = "4", color=ACTOR_COLOR[sensor_ls[i]])
                     plt.text(actors_x_arr[i][0], actors_y_arr[i][0], '[%d]'%objID_ls[i], ha='left', va='bottom')
-                    actor_marker = patches.Rectangle((actors_x_arr[i][0]-lw_ls[i][0]/2, actors_y_arr[i][0]-lw_ls[i][1]/2), lw_ls[i][0], lw_ls[i][1], color=ACTOR_COLOR[sensor_ls[i]])
+                    actor_marker = patches.Rectangle((actors_x_arr[i][0]-lw_ls[i][0]/2, actors_y_arr[i][0]-lw_ls[i][1]/2), 
+                                                     lw_ls[i][0], lw_ls[i][1], color=ACTOR_COLOR[sensor_ls[i]])
                 plt.text(0.25, -0.50, ro_msg, ha='left', va='top', transform=ax.transAxes, fontsize=10)
                 ax.add_patch(actor_marker)
                 actor_marker.set_zorder(10)
@@ -212,7 +233,12 @@ def matched_traj_plot(display_data, it=0):
         if num_lanes != 0:
             for i_lane in range(num_lanes):
                 lane_typ = int(lane_channels[i_lane]['typ'])
-                plt.plot(lane_channels[i_lane]['x_arr'], lane_channels[i_lane]['y_arr'], linewidth=LANE_TYP[lane_typ]['linewidth'], linestyle=LANE_TYP[lane_typ]['linestyle'], color='black')
+                plt.plot(lane_channels[i_lane]['x_arr'], lane_channels[i_lane]['y_arr'], 
+                         linewidth=LANE_TYP[lane_typ]['linewidth'], 
+                         linestyle=LANE_TYP[lane_typ]['linestyle'], 
+                         color='black')
+                
+        # Plot pred result -- camera
 
         fig.canvas.mpl_connect('key_press_event', on_key_capture)
         plt.pause(0.01)
@@ -224,3 +250,41 @@ def matched_traj_plot(display_data, it=0):
     
     plt.close()
     print("Plotting ends.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description='Generate the labeled training file of related or non-related object from the recording .mat file')
+    parser.add_argument('--start_frame', default=3200,
+                        help='the start frame in the recording of the labeling process')
+                        # = 0: from beginning
+                        # = 0~len: for load pkl display
+    args = parser.parse_args()
+    print('Start with the args: {}'.format(args))
+
+    CACHE_PATH = "cache_display"
+    record_name = "20210609_123753_BB_split_000"
+    display_pkl_name = 'display_{0}.pkl'.format(record_name)
+    cache_path = os.path.join(CACHE_PATH, display_pkl_name)
+
+    display_data = pickle_load(cache_path)
+
+    # DEBUG ---------------
+    # is_equal_ego_global_ls = []
+    # for i, time_frame in enumerate(display_data):
+    #     frame_global = time_frame['global']
+    #     ego_global = time_frame['ego_traj'][0]['global']
+    #     is_equal_ego_global = (ego_global==frame_global)
+    #     is_equal_ego_global_ls.append(is_equal_ego_global)
+
+    #     if len(time_frame['actors_traj']) != 0:
+    #         is_equal_actor_global = []
+    #         for actor_traj in time_frame['actors_traj']:
+    #             # actors_global.append(actor_traj['actor_traj'][0]['global'])
+    #             is_equal_actor_global.append(True if actor_traj['actor_traj'][0]['global'] == ego_global else False)
+
+    #         if not all(is_equal_actor_global):
+    #             print("[%05d] NOT ALL actors global == frame_global"%(i))
+    # print("ALL ego_global == frame_global? %s"%("True" if all(is_equal_ego_global_ls) else "False")) # -- TRUE
+    #----------------------
+
+    matched_traj_plot(display_data, it=args.start_frame)
