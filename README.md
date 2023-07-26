@@ -117,6 +117,13 @@ stay in root path, run the script `main.py`
   <br>
 </div> 
 
+### Labeling:
+
+In one recording, all the points of ego and actor trajectories are known. We can get thier trajectories in any slot within the whole time span. The ego and actors' states are paired according to their "global time". Taking the 0-th trajectory point's time stamp as the current time, the labeling tool discriminates actors as RO (Related Object) or NRO (Not-Related Object) basing on their maneuver in the following frames directly.  
+
+### Training:
+
+
 ## 1. Labeling
 
 <div align="center">
@@ -126,74 +133,89 @@ stay in root path, run the script `main.py`
 </div>  
 
 - The data structure of the .json label file:
-```json
-[ // a list of actor-ego pairs
-    { // actor 0 & corresponding ego traj
-        "RO": false,
-        "actor_traj": [ // actor trajectory
-            // actor state 0 in this trajectory
-            {
-                "time": 0.0,
-                "id": 242.0,
-                "type": 7.0,
-                "ref_point": 6.0,
-                "width": 2.0,
-                "length": 5.0,
-                "height": 1.5,
-                "vel_x": 38.30303851718452,
-                "vel_y": 3.612994544048159,
-                "yaw": -6.309817113248073e-10,
-                "pos_x": 117.108,
-                "pos_y": -0.6645,
-                "sensor": "camera",
-                "global": 0.04,  // -> global time matches the actor and ego trajs of the same frame
-                "pos_s": 116.22880609109846,
-                "pos_d": 0.47164890690169525,
-                "vel_s": 40.10415997182761,
-                "vel_d": 0.9844861408616179
-            },
-            // actor state 1 in this trajectory
-            {
-                // ... 
-            },
-            // ... other actor states
-            // 100 actor points in total
-        ],
-        "ego_traj": [ // corresponding ego trajectory
-            // ego traj point 0
-            {
-                "global": 0.04,
-                "time": 0.0,
-                "pos_x": -0.0,
-                "pos_y": 0.0,
-                "yaw": 0.0,
-                "curv": 0,
-                "vel_t": 33.875,
-                "acc_t": 0.08999999999999986,
-                "distance": 0.0,
-                "world_x": 3.0299999999999994, // 'EML_PositionX'
-                "world_y": 5.893000000000001,  // 'EML_PositionY'
-                "world_yaw": -1.8017986337985  // 'EML_YawAngle' in [rad]
-            },
-            // ego traj point 1
-            {
-                // ... 
-            },
-            // ... other ego traj points
-            // 300 ego points in total
-        ]
-    },
-    // actor 1 & corresponding ego traj
-    {
-        "RO": true,
-        "actor_traj":[
-            //... list of actor traj states
-        ],
-        "ego_traj":[
-            //... list of ego traj points
-        ]
-    },
-    // ... other actor-ego pairs
+
+```bash
+[ # a list of ACTOR-EGO pairs
+  ├── { # ACTOR 0 & its corresponding EGO traj
+  │   ├── "RO": false, # RO-Label for this pair
+  │   ├── "actor_traj": 
+  │   ├── [ # points of ACTOR trajectory
+  │   │   ├── { # states of point 0 in ACTOR trajectory
+  │   │   |   ├── "time": 0.0, # rel. to actor[0]'s global
+  │   │   |   ├── "id": 242.0,
+  │   │   |   ├── "type": 7.0,
+  │   │   |   ├── "ref_point": 6.0,
+  │   │   |   ├── "width": 2.0,
+  │   │   |   ├── "length": 5.0,
+  │   │   |   ├── "height": 1.5,
+  │   │   |   ├── "vel_x": 38.30303851718452,
+  │   │   |   ├── "vel_y": 3.612994544048159,
+  │   │   |   ├── "yaw": -6.309817113248073e-10,
+  │   │   |   ├── "pos_x": 117.108, # rel. to ego[0]'s pos
+  │   │   |   ├── "pos_y": -0.6645, # rel. to ego[0]'s pos
+  │   │   |   ├── "sensor": "camera",
+  │   │   |   ├── "global": 0.04,  # -> pairs the ACTOR and EGO trajs
+  │   │   |   ├── "pos_s": 116.22880609109846,
+  │   │   |   ├── "pos_d": 0.47164890690169525,
+  │   │   |   ├── "vel_s": 40.10415997182761,
+  │   │   |   ├── "vel_d": 0.9844861408616179
+  │   │   ├── },
+  │   │   |
+  │   │   ├── { # states of point 1 in ACTOR trajectory
+  │   │   |   ├── ...
+  │   │   |   },
+  │   │   |
+  │   │   └── ... # 100 ACTOR points in total
+  │   │   ], # END ACTOR point list
+  │   │
+  │   ├── "ego_traj": 
+  │   ├── [ # points of EGO trajectory
+  │   │   ├── { # states of point 0 in EGO trajectory
+  │   │   |   ├── "global": 0.04,
+  │   │   |   ├── "time": 0.0, # rel. to ego[0]'s global
+  │   │   |   ├── "pos_x": -0.0, # rel. to ego[0]'s pos
+  │   │   |   ├── "pos_y": 0.0, # rel. to ego[0]'s pos
+  │   │   |   ├── "yaw": 0.0,
+  │   │   |   ├── "curv": 0,
+  │   │   |   ├── "vel_t": 33.875,
+  │   │   |   ├── "acc_t": 0.08999999999999986,
+  │   │   |   ├── "distance": 0.0,
+  │   │   |   ├── "world_x": 3.0299999999999994, # 'EML_PositionX'
+  │   │   |   ├── "world_y": 5.893000000000001,  # 'EML_PositionY'
+  │   │   |   ├── "world_yaw": -1.8017986337985  # 'EML_YawAngle' in [rad]
+  │   │   |   },
+  │   │   |
+  │   │   ├── { # states of point 1 in EGO trajectory
+  │   │   |   ├── ...
+  │   │   |   },
+  │   │   └── ... # 300 EGO points in total
+  │   |   ] # END EGO point list
+  │   },
+  |
+  ├── { # ACTOR 1 & its corresponding EGO traj
+  │   ├── "RO": false, # RO-Label for this pair
+  │   ├── "actor_traj":
+  │   ├── [ # 100 actor points
+  │   │   ├── { actor state 0 },
+  │   │   ├── { actor state 1 },
+  │   │   └── ...
+  │   │   ],
+  │   ├── "ego_traj":
+  │   ├── [ # 300 ego points
+  │   │   ├── { ego state 0 },
+  │   │   ├── { ego state 1 },
+  │   │   ├── { ego state 2 },
+  │   │   └── ...
+  │   │   ]
+  │   },
+  |
+  ├── ... # other actor-ego pairs
+  |
+  └── { # ACTOR 11216 & its corresponding EGO traj
+      ├── "RO": false, # RO-Label for this pair
+      ├── "actor_traj": []
+      ├── "ego_traj": []
+      },
 ]
 ```
 
