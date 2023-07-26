@@ -6,6 +6,8 @@ from traj_plot import matched_traj_plot
 import pickle
 from mat_loader import MatLoader
 import os
+import glob
+import sys
 
 def get_files_in_folder(folder_path):
     files_ls = []
@@ -78,24 +80,27 @@ if __name__ == '__main__':
     print('Start with the args: {}'.format(args))
 
     # "20210609_123753_BB_split_000"
-    CACHE_PATH = "cache_display"
+    CACHE_FOLDER = "cache_display"
     SNAPSHOT_PATH = "snapshots"
+
+    filepath_ls = glob.glob("{x}/*.{y}".format(x=args.mat_folder, y='mat'))
+    dataname_ls = [filepath.split('\\')[-1].split('.')[0]  for filepath in filepath_ls]
 
     if args.rec_name is None:
         data_loader = MatLoader(args)
         record_name = data_loader.get_name()
     else:
-        assert ('cache_' + args.rec_name + '.pkl') in get_files_in_folder(CACHE_PATH)
+        assert ('cache_' + args.rec_name + '.pkl') in get_files_in_folder(CACHE_FOLDER)
         record_name = args.rec_name
     pkl_name = 'cache_{0}.pkl'.format(record_name)
     json_name = 'label_{0}.json'.format(record_name)
 
     if args.load_pkl:
-        cache_path = os.path.join(CACHE_PATH, pkl_name)
+        cache_path = os.path.join(CACHE_FOLDER, pkl_name)
         if not os.path.exists(cache_path):
             label_data, display_data = data_process(data_loader)
             save_labels_as_json(args, label_data, record_name)
-            pickle_cache(display_data, CACHE_PATH, pkl_name)
+            pickle_cache(display_data, CACHE_FOLDER, pkl_name)
         else:
             display_data = pickle_load(cache_path)
             print("Successfully loaded matched traj from %s."%cache_path)
@@ -105,8 +110,34 @@ if __name__ == '__main__':
 
     matched_traj_plot(display_data, it=args.start_frame)
 
-    # Load .mat recording
     # Labeling -> .json label file
+    filepath_ls = glob.glob("{x}/*.{y}".format(x=args.mat_folder, y='mat'))
+    dataname_ls = [filepath.split('\\')[-1].split('.')[0]  for filepath in filepath_ls]
+    if len(filepath_ls):
+        print("[Mat loader] %d .mat files found."%len(filepath_ls))
+        for i, data_name in enumerate(dataname_ls):
+            print("\n -[%d] %s"%(i+1, data_name))
+        mat_idx = int(input("\n[Mat loader] Select one mat file to load. (input 0 to load all) >>> "))
+    
+        if mat_idx == 0:
+            for filepath in filepath_ls:
+                mat_loader = MatLoader(args, filepath)
+                record_name = mat_loader.get_name()
+                display_pkl_name = 'display_{0}.pkl'.format(record_name)
+                label_data, display_data = data_process(mat_loader)
+                save_labels_as_json(args, label_data, record_name)
+                pickle_cache(display_data, CACHE_FOLDER, display_pkl_name)
+        else:
+            filepath = filepath_ls[mat_idx-1]
+            mat_loader = MatLoader(args, filepath)
+            record_name = mat_loader.get_name()
+            display_pkl_name = 'display_{0}.pkl'.format(record_name)
+            label_data, display_data = data_process(mat_loader)
+            save_labels_as_json(args, label_data, record_name)
+            pickle_cache(display_data, CACHE_FOLDER, display_pkl_name)
+    else:
+        sys.exit('[Mat loader] .mat not found')
+    
     # Training -> .h5 model
     # Predict
     # Display: Validate prediction vs. labeling

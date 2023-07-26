@@ -9,7 +9,7 @@ import pickle
 
 # Load .pkl file
 def pickle_load(path):
-    print("loading matched traj from pkl ...")
+    print("[Display] loading matched traj from pkl ...")
     with open(path, 'rb') as f:
         return pickle.load(f)
 
@@ -207,7 +207,7 @@ def matched_traj_plot(display_data, it=0):
         if actors_len != 0:
             ro_msg = ""
             for i in range(actors_len):
-                if ro_ls[i]:
+                if ro_ls[i]: # label = RO
                     plt.plot(actors_x_arr[i], actors_y_arr[i], label = "actor %02d"\
                              %i, marker = "s", markerfacecolor='none', markeredgecolor="red", markeredgewidth=1)
                     
@@ -219,7 +219,7 @@ def matched_traj_plot(display_data, it=0):
                     
                     ro_msg += "\nRO[%01d]: ID %d; Global:%.2f[s]; (d: %.2f, s: %.2f);   Rules: r1[%s], r2[%s], r3[%s]."\
                               %(i, objID_ls[i], global_time_ls[i], ds_ls[i][0], ds_ls[i][1], rules123_ls[i][0],rules123_ls[i][1],rules123_ls[i][2])
-                else:
+                else: # label = NRO
                     plt.plot(actors_x_arr[i], actors_y_arr[i], label = "actor %02d"%i, marker = "4", color=ACTOR_COLOR[sensor_ls[i]])
                     plt.text(actors_x_arr[i][0], actors_y_arr[i][0], '[%d]'%objID_ls[i], ha='left', va='bottom')
                     actor_marker = patches.Rectangle((actors_x_arr[i][0]-lw_ls[i][0]/2, actors_y_arr[i][0]-lw_ls[i][1]/2), 
@@ -238,7 +238,7 @@ def matched_traj_plot(display_data, it=0):
                          linestyle=LANE_TYP[lane_typ]['linestyle'], 
                          color='black')
                 
-        # Plot pred result -- camera
+        #TODO: Plot pred result of 'camera' actors
 
         fig.canvas.mpl_connect('key_press_event', on_key_capture)
         plt.pause(0.01)
@@ -254,7 +254,11 @@ def matched_traj_plot(display_data, it=0):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--start_frame', default=3200,
+    parser.add_argument('--start_frame', default=0,
+                        help='the start frame in the recording of the labeling process')
+                        # = 0: from beginning
+                        # = 0~len: for load pkl display
+    parser.add_argument('--pred_on', default=True,
                         help='the start frame in the recording of the labeling process')
                         # = 0: from beginning
                         # = 0~len: for load pkl display
@@ -262,7 +266,7 @@ if __name__ == "__main__":
     print('Start with the args: {}'.format(args))
 
     CACHE_PATH = "cache_display"
-    record_name = "20210609_123753_BB_split_000"
+    record_name = "local_911_01"
     display_pkl_name = 'display_{0}.pkl'.format(record_name)
     cache_path = os.path.join(CACHE_PATH, display_pkl_name)
 
