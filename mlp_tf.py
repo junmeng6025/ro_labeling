@@ -211,7 +211,7 @@ if __name__ == '__main__':
     print('Start with the args: {}'.format(args))
 
     # Load configs
-    configs = json.load(open('configs.json', 'r'))
+    configs = json.load(open('training_configs.json', 'r'))
 
     json_folder = "labels"
     fname = "20210609_123753_BB_split_000"
