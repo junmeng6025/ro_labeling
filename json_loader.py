@@ -393,9 +393,9 @@ class DataProcesser():
             }
             """
             feature_vec = []
-            for actor_dic in sample['actor_history_seq']:
+            for actor_dict in sample['actor_history_seq']:
                 for k in self.keys:
-                    feature_vec.append(actor_dic[k])
+                    feature_vec.append(actor_dict[k])
 
             if len(feature_vec)==self.expected_x_dim:
                 feavec_ro_pairs.append({
