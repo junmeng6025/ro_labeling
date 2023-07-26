@@ -98,7 +98,7 @@ def mock_ego_to_dictlist(mock, compen_xyyaw, global_idx):
 
     mock_dict = []
     for idx in range(len(mock)):
-        mock_dict.append({'global': global_idx * 0.04,
+        mock_dict.append({'global': round((global_idx * 0.04), 2),
                           'time': mock[idx][0],
                           'pos_x': mock[idx][1],
                           'pos_y': mock[idx][2],
