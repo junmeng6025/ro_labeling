@@ -7,6 +7,8 @@ import math
 import argparse
 import random
 from tqdm import tqdm
+import os
+import decimal
 
 ### DEBUG
 from debug.radar_filter import save_as_csv
@@ -17,12 +19,12 @@ NR_OF_CAMERA_ACTORS = 10
 NR_OF_LRR_ACTORS = 20
 NR_OF_LANE_CHN = 6
 NO_ACTOR = 255.0 # No actor is present then the ID from sensor will be 255
-FRAGMENT_LENGTH = 4.0  # [s] length of the fragment which will be labeled
+FRAGMENT_LENGTH = 4.0  # [s] length of the fragment which will be labeled, i.e. 100 frames of actors
 RADAR_OBJ_MAX_VEL = 127.875  # [m/s] max velocity of the object in the radar
 
 
 class MatLoader:
-    def __init__(self, args):
+    def __init__(self, args, data_path=None):
         self.args = args
         self.ego_generator = EMLFromMat()
         self.actor_generator = OGMFromMat()
@@ -37,6 +39,7 @@ class MatLoader:
         self.current = args.start_frame
         self.fpi = int(args.range / TIME_STEP)  # Frame per iteration: number of egoframes will be calculated in one iter
         self.sample_rate = args.sample_rate
+        self.data_path = data_path
         self.data_name = 'default'
         self.load_data()
         
@@ -63,40 +66,36 @@ class MatLoader:
     
     # def get_ego_traj_wc(self):   # FOR DEBUG
     #     return self.ego_traj_wc  # FOR DEBUG
-    
-    # START fea: load a batch of files ============================================================
-    # def find_data(self):
-    #     filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.mat_folder, y='mat'))
-    #     if len(filepath_ls):
-    #         self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]
-    #         print('Process data: {}'.format(filepath_ls[0]))
-    #     else:
-    #         sys.exit('No .mat file found')
-    # END fea: load a batch of files ==============================================================
 
     def load_data(self):
-        filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.mat_folder, y='mat'))
-        if len(filepath_ls):
-            self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]  # CURRENT: load only one file, cannot handle a batch of files
-            print('Process data: {}'.format(filepath_ls[0]))
-        else:
-            sys.exit('.mat not found')
+        # filepath_ls = glob.glob("{x}/*.{y}".format(x=self.args.mat_folder, y='mat'))
+        # if len(filepath_ls):
+        #     self.data_name = filepath_ls[0].split('\\')[-1].split('.')[0]  # CURRENT: load only one file, cannot handle a batch of files
+        #     print('Process data: {}'.format(filepath_ls[0]))
+        # else:
+        #     sys.exit('.mat not found')
 
-        mat = sio.loadmat(filepath_ls[0])
-        self.flex_ray = mat['FlexRay']
-        for k in self.flex_ray.dtype.fields.keys():
-            if k == 'Time':
-                self.signals['Time'] = self.flex_ray['Time'][0, 0]
-                self.high = len(self.signals['Time'])
-            else:
-                obj = self.flex_ray[k][0, 0]
-                for l in obj.dtype.fields.keys():
-                    self.signals[l] = obj[l][0, 0]
-        for key in list(self.signals.keys()):
-            if not self.signals.get(key).any():
-                self.signals.pop(key)
-        self.signals_length = min([len(self.signals[k]) for k in self.signals.keys()])
-        print('[Mat loader] {} frames of signal are loaded'.format(self.signals_length))
+        if self.data_path is not None:
+            self.data_name = self.data_path.split('\\')[-1].split('.')[0]  # CURRENT: load only one file, cannot handle a batch of files
+            print('[Mat loader] Process data: {}'.format(self.data_path))
+            mat = sio.loadmat(self.data_path)
+            self.flex_ray = mat['FlexRay']
+            for k in self.flex_ray.dtype.fields.keys():
+                if k == 'Time':
+                    self.signals['Time'] = self.flex_ray['Time'][0, 0]
+                    self.high = len(self.signals['Time'])
+                else:
+                    obj = self.flex_ray[k][0, 0]
+                    for l in obj.dtype.fields.keys():
+                        self.signals[l] = obj[l][0, 0]
+            for key in list(self.signals.keys()):
+                if not self.signals.get(key).any():
+                    self.signals.pop(key)
+            self.signals_length = min([len(self.signals[k]) for k in self.signals.keys()])
+            print('[Mat loader] {} frames of signal are loaded'.format(self.signals_length))
+        else:
+            sys.exit('[MatLoader] Data path was not given')
+        
 
     def generate_ego_paths(self):
         for idx in tqdm(range(self.high - self.fpi), bar_format='{desc:<60}{percentage:3.0f}%|{bar:40}{r_bar}', \
@@ -257,7 +256,7 @@ class MatLoader:
 
                         # extract features from the data
                         data = self.extract_features(data, sensor)
-                        data['global'] = cursor * TIME_STEP  # BUG: might occur 327.840000000003, which supposed to be 327.84
+                        data['global'] = round((cursor * TIME_STEP), 2)  # BUG: might occur 327.840000000003, which supposed to be 327.84
                         actor_path_data.append(data)
                         # if the length of the fragment is reached then truncate the path
                         if len(actor_path_data) >= length / TIME_STEP: # 4 seconds , 100 frames
@@ -446,10 +445,14 @@ class MatLoader:
             pos_y_ls = []
             for i in range (0, len(path)):
                 path[i]['time'] = ego_trajectory[i]['time']
-                # x_global = np.cos(oyaw) * px - np.sin(oyaw) * py + ox
-                # y_global = np.sin(oyaw) * px + np.cos(oyaw) * py + oy
+                # LOCAL: rel. to corresponding ego, i.e. ego_traj[i]
+                # GLOBAL: rel. to current ego, i.e. ego_traj[0]
+                # actor pos from signal: pos in LOCAL coord, i.e. rel. to the ego with the same global time
                 px = path[i]['pos_x']
                 py = path[i]['pos_y']
+                # cvt actor pose to GLOBAL: coord, i.e. rel to ego[0], basing on the cooresponding ego[i]'s GLOBAL pose
+                #   x_global = np.cos(oyaw) * px - np.sin(oyaw) * py + ox
+                #   y_global = np.sin(oyaw) * px + np.cos(oyaw) * py + oy
                 path[i]['pos_x'] = math.cos(ego_trajectory[i]['yaw'])*px - math.sin(ego_trajectory[i]['yaw'])*py + ego_trajectory[i]['pos_x']
                 path[i]['pos_y'] = math.sin(ego_trajectory[i]['yaw'])*px + math.cos(ego_trajectory[i]['yaw'])*py + ego_trajectory[i]['pos_y']
 
