@@ -38,6 +38,7 @@ class MLP():
         self.history = None
         self.configs = {}
         self.eval_result = {}
+        self.model_path = None
     
     def load_model(self, model_path):
         print("[Model] Loading model from file %s"%model_path)
@@ -78,13 +79,13 @@ class MLP():
     def train(self, x, y, b_save_model=True):
         print('[Model] Training Started')
         print('[Model] %s epochs, %s batch size' % (self.configs['num_epochs'], self.configs['batch_size']))
-        save_fname = os.path.join(self.configs['save_dir_tf'], '%s_ep%s_bs%s.h5'\
+        save_path = os.path.join(self.configs['save_dir_tf'], '%s_ep%s_bs%s.h5'\
                                   % (dt.datetime.now().strftime('%Y%m%d_%H%M%S'),\
                                      str(self.configs['num_epochs']),\
                                      str(self.configs['batch_size'])))
         callbacks = [
 			# EarlyStopping(monitor='val_loss', patience=5),
-			ModelCheckpoint(filepath=save_fname, monitor='val_loss', save_best_only=False)
+			ModelCheckpoint(filepath=save_path, monitor='val_loss', save_best_only=False)
 		]
         self.history = self.model.fit(
             x,
@@ -96,8 +97,9 @@ class MLP():
             validation_split=0.2
         )
         if b_save_model:
-            self.model.save(save_fname)
-            print('[Model] Training Completed. Model saved as %s' % save_fname)
+            self.model.save(save_path)
+            self.model_path = save_path
+            print('[Model] Training Completed. Model saved as %s' % save_path)
 
     def disp_history(self):
         loss_values = self.history.history['loss']
@@ -199,13 +201,13 @@ def evaluate_sklearn(pred_ls, gt_ls, th_for_true):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Generate the labeled training file of related or non-related object from the recording .mat file')
-    parser.add_argument('--is_dataset_pkl', default=True, # whether load dataset from pkl
+    parser.add_argument('--if_dataset_from_pkl', default=True, # By PRED set as True
                         help='load pre-processed data from pkl')
-    parser.add_argument('--json_folder', default='./labels/', 
+    parser.add_argument('--label_folder', default='./labels/', 
                         help='path of the json file containing labels')
-    parser.add_argument('--mlp_mode', default="pred", # MLP mode
-                        help='MUST BE "train" OR "pred"')
-    parser.add_argument('--model_path', default="saved_models/tf/20230719_174523_ep128_bs64.h5", 
+    parser.add_argument('--mlp_mode', default="PRED", # MLP mode: TRAIN or PRED
+                        help='MUST BE "TRAIN" OR "PRED"')
+    parser.add_argument('--model_path', default="saved_models/tf/20230802_110511_ep128_bs64.h5", 
                         help='path to an existing .h5 model file')
     args = parser.parse_args()
     print('Start with the args: {}'.format(args))
@@ -215,9 +217,9 @@ if __name__ == '__main__':
 
     json_folder = "labels"
     fname = "20210609_123753_BB_split_000"
-    json_fname = "%s.json"%fname
+    json_fname = "label_%s.json"%fname
 
-    if not args.is_dataset_pkl:
+    if not args.if_dataset_from_pkl:
         # Load data ################################################################################ 
         cam_train_set, cam_test_set = json_to_dataset(json_folder, json_fname, configs, sensor="camera")
 
@@ -244,7 +246,7 @@ if __name__ == '__main__':
 
     # Model
     mlp = MLP()
-    if args.mlp_mode == "train":
+    if args.mlp_mode == "TRAIN":
         print("\n[Model] Mode: TRAIN\n")
         # Train
         mlp.build_model(configs)
@@ -253,7 +255,7 @@ if __name__ == '__main__':
         mlp.eval(x_test, y_test)
         mlp.disp_history()
 
-    if args.mlp_mode == "pred":
+    if args.mlp_mode == "PRED":
         print("\n[Model] Mode: PRED\n")
         # Pred
         model_path = args.model_path
@@ -266,5 +268,6 @@ if __name__ == '__main__':
         # >>>>> evaluate sklearn:
         y_pred_batch = mlp.pred_batch_samples(x_test)
         eval_metrics = evaluate_sklearn(y_pred_batch, y_test, configs['conf_th'])
+        print(eval_metrics)
 
     print("End")

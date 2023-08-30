@@ -3,11 +3,12 @@
     "hidden_dims":[
         128,
         64,
-        16
+        16,
+        4
     ],
     "num_classes": 1,
-    "lr": 0.0005,
-    "num_epochs": 128,
+    "lr": 0.0001,
+    "num_epochs": 200,
     "batch_size": 64,
     "save_dir_tf": "saved_models/tf",
     "save_dir_pt": "saved_models/pt",

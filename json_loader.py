@@ -17,12 +17,13 @@ def get_global_coord(global_p, local_p):
     """
 
     ox, oy, oyaw = global_p
-    px, py  = np.array(local_p[0]), np.array(local_p[1])
+    px, py, pyaw = np.array(local_p[0]), np.array(local_p[1]), np.array(local_p[2])
 
     x_global = np.cos(oyaw) * px - np.sin(oyaw) * py + ox
     y_global = np.sin(oyaw) * px + np.cos(oyaw) * py + oy
+    yaw_global = oyaw + pyaw
 
-    return x_global, y_global
+    return x_global, y_global, yaw_global
 
 
 def get_relative_coord(origin, points):
@@ -43,6 +44,22 @@ def get_relative_coord(origin, points):
     yaw_rel = np.arctan2(np.sin(pyaw - oyaw), np.cos(pyaw - oyaw))
 
     return x_rel, y_rel, yaw_rel
+
+
+def get_current_actor_rel_previous(ego_i, actor_n, ego_n):
+    """
+    bring actor pose from frame n to frame i
+    """
+    x_e_i, y_e_i, yaw_e_i = ego_i
+    x_e_n, y_e_n, yaw_e_n = ego_n
+    x_a_n, y_a_n, yaw_a_n = actor_n
+    phi = -yaw_e_i
+    theta = yaw_e_n - yaw_e_i
+
+    x_actor_i = np.cos(phi)*(x_e_n - x_e_i) - np.sin(phi)*(y_e_n - y_e_i) + np.cos(theta)*x_a_n - np.sin(theta)*y_a_n
+    y_actor_i = np.sin(phi)*(x_e_n - x_e_i) + np.cos(phi)*(y_e_n - y_e_i) + np.sin(theta)*x_a_n + np.cos(theta)*y_a_n
+    yaw_actor_i = yaw_a_n + theta
+    return {'x_a_i': x_actor_i, 'y_a_i': y_actor_i, 'yaw_a_i': yaw_actor_i}
 
 
 def calc_actor_frenet_single(ego_traj_c, actor_node):
@@ -101,7 +118,7 @@ def calc_actor_frenet_single(ego_traj_c, actor_node):
         pos_s = ego_travel_dist[min_index]
     else:
         pos_s = ego_travel_dist[min_index-1] + (ego_travel_dist[min_index+1] - ego_travel_dist[min_index-1]) * ratio
-    return {'pos_d': pos_d, 'pos_s': pos_s}
+    return {'pos_s': pos_s, 'pos_d': pos_d}
 
 
 # Class JsonLoader =====================================================================
@@ -115,6 +132,7 @@ class JsonLoader():
     def __init__(self):
         # self.folder_path = folder_path
         # self.json_fname = json_fname
+        self.ego_recording_start = None
         self.ego_whole_path = []
         self.frame_ls_json = []
 
@@ -134,9 +152,9 @@ class JsonLoader():
     def read_json(self, folder_path, json_fname, sensor, ego_traj_len=EGO_TRAJ_LEN):
         """
         Explaination about coordinations:
-        - World:  values directly from sensor signal, recorded by signal
-        - Global: relative to ego's satrt pose at frame 0
-        - Local:  relative to ego's current pose at current frame
+        - EML/World:    Odometry signal. Origin at journey start, not at recording start.
+        - Global:       Take ego's start point at recording's frame=0 as the origin
+        - Local:        Relative to ego's current pose at current frame
 
         Output:
         - Actor-EgoTraj pairs
@@ -145,22 +163,10 @@ class JsonLoader():
         print("\n[Dataset] Loading json data ...")
         data_ls = json.load(open(os.path.join(folder_path, json_fname), 'r'))
 
-        for i, data in enumerate(data_ls):
+        self.ego_recording_start = data_ls[0]['ego_recording_start']
+        for i, data in enumerate(data_ls[1:]):
             if data['actor_traj'][0]['sensor'] == sensor:
                 if data['actor_traj'][0]['global'] == data['ego_traj'][0]['global']:
-                    # calc actor pose in world coord
-                    origin_ego_pose = (
-                        data['ego_traj'][0]['world_x'],
-                        data['ego_traj'][0]['world_y'],
-                        data['ego_traj'][0]['world_yaw']
-                    )
-                    rel_actor_position = (
-                        data['actor_traj'][0]['pos_x'],
-                        data['actor_traj'][0]['pos_y']
-                    )
-                    wc_x_actor, wc_y_actor = get_global_coord(origin_ego_pose, rel_actor_position)
-                    wc_yaw_actor = data['actor_traj'][0]['yaw'] + data['ego_traj'][0]['world_yaw']
-
                     # write data
                     self.frame_ls_json.append({
                         'global': data['ego_traj'][0]['global'],
@@ -169,16 +175,13 @@ class JsonLoader():
                         'sensor': data['actor_traj'][0]['sensor'],
                         'actor_current': {           
                             'global': data['actor_traj'][0]['global'], # global time stamp
-                            'loc_x': data['actor_traj'][0]['pos_x'], # local, rel to ego_traj[0] at current frame
+                            'loc_x': data['actor_traj'][0]['pos_x'], # local, actor[i]'s pose from sensor signal rel to ego_traj[i] at current frame, here we aquire both [0] as current
                             'loc_y': data['actor_traj'][0]['pos_y'], # local
                             'loc_yaw': data['actor_traj'][0]['yaw'], # local
                             'vel_x': data['actor_traj'][0]['vel_x'],
                             'vel_y': data['actor_traj'][0]['vel_y'],
                             'length': data['actor_traj'][0]['length'],
-                            'width': data['actor_traj'][0]['width'],
-                            'world_x': wc_x_actor,    # world
-                            'world_y': wc_y_actor,    # world
-                            'world_yaw': wc_yaw_actor # world
+                            'width': data['actor_traj'][0]['width']
                         },
                         'ego_traj': [
                             {
@@ -188,9 +191,9 @@ class JsonLoader():
                                 'loc_y': ego_point['pos_y'],
                                 'loc_yaw': ego_point['yaw'],
                                 'vel_t': ego_point['vel_t'],
-                                'world_x': ego_point['world_x'],
-                                'world_y': ego_point['world_y'],
-                                'world_yaw': ego_point['world_yaw']  # [rad]
+                                'eml_x': ego_point['world_x'],
+                                'eml_y': ego_point['world_y'],
+                                'eml_yaw': ego_point['world_yaw']  # [rad]
                             }
                             for ego_point in data['ego_traj'][:ego_traj_len]
                         ]
@@ -198,35 +201,41 @@ class JsonLoader():
 
     def extend_glb_pose(self):
         print("\n[Dataset] Extend frame data: ego's and actor's GLOBAL POSE ...")
-        ego_start_tuple = (
-            self.frame_ls_json[0]['ego_traj'][0]['world_x'],
-            self.frame_ls_json[0]['ego_traj'][0]['world_y'],
-            self.frame_ls_json[0]['ego_traj'][0]['world_yaw'],
-        )
+        # ego_recording_start = (
+        #     self.frame_ls_json[0]['ego_traj'][0]['eml_x'],
+        #     self.frame_ls_json[0]['ego_traj'][0]['eml_y'],
+        #     self.frame_ls_json[0]['ego_traj'][0]['eml_yaw'],
+        # )
 
         for frame in self.frame_ls_json:
+            ego_pose_current = (
+                frame['ego_traj'][0]['eml_x'],
+                frame['ego_traj'][0]['eml_y'],
+                frame['ego_traj'][0]['eml_yaw'],
+            )
             # ego traj points
             for ego_point in frame['ego_traj']:
-                ego_pose_wc_tuple = (
-                    ego_point['world_x'],
-                    ego_point['world_y'],
-                    ego_point['world_yaw']
+                ego_pose = (
+                    ego_point['eml_x'],
+                    ego_point['eml_y'],
+                    ego_point['eml_yaw']
                 )
-                ego_x_rel, ego_y_rel, ego_yaw_rel = get_relative_coord(ego_start_tuple, ego_pose_wc_tuple)
-                ego_point['glb_x'] = ego_x_rel
-                ego_point['glb_y'] = ego_y_rel
-                ego_point['glb_yaw'] = ego_yaw_rel
+                ego_x_glb, ego_y_glb, ego_yaw_glb = get_relative_coord(self.ego_recording_start, ego_pose)
+                ego_point['glb_x'] = ego_x_glb
+                ego_point['glb_y'] = ego_y_glb
+                ego_point['glb_yaw'] = ego_yaw_glb
                     
             # actor current point
-            actor_pose_wc_tuple = (
-                frame['actor_current']['world_x'],
-                frame['actor_current']['world_y'],
-                frame['actor_current']['world_yaw']
+            actor_pose_current = (
+                frame['actor_current']['loc_x'],
+                frame['actor_current']['loc_y'],
+                frame['actor_current']['loc_yaw'],
             )
-            actor_x_rel, actor_y_rel, actor_yaw_rel = get_relative_coord(ego_start_tuple, actor_pose_wc_tuple)
-            frame['actor_current']['glb_x'] = actor_x_rel
-            frame['actor_current']['glb_y'] = actor_y_rel
-            frame['actor_current']['glb_yaw'] = actor_yaw_rel
+
+            actor_pose_glb = get_current_actor_rel_previous(ego_i=self.ego_recording_start, actor_n=actor_pose_current, ego_n=ego_pose_current)
+            frame['actor_current']['glb_x'] = actor_pose_glb['x_a_i']
+            frame['actor_current']['glb_y'] = actor_pose_glb['y_a_i']
+            frame['actor_current']['glb_yaw'] = actor_pose_glb['yaw_a_i']
             
             # ego whole path
             self.ego_whole_path.append(
@@ -261,7 +270,9 @@ class JsonLoader():
                 else:
                     # print("ABORT: Not the same actor OR not continuous frame.")
                     break
+
             if len(frame_seq) == seq_len:
+                # Frenet calc from GLOBAL -------------------
                 ego_traj_cart = [
                     {
                         'x': ego_point['glb_x'],
@@ -272,14 +283,15 @@ class JsonLoader():
                 # calc every actor's frenet position rel to current ego traj
                 actor_history_seq = [frame['actor_current'] for frame in frame_seq] # index from [0] to [len-1]: from the earliest history to current
                 for actor in actor_history_seq:
-                    actor_xy_loc = {
+                    # Frenet calc from GLOBAL -------------------
+                    actor_glb = {
                         'x': actor['glb_x'],
                         'y': actor['glb_y']
                     }
-                    actor_frenet = calc_actor_frenet_single(ego_traj_cart, actor_xy_loc)
+                    actor_frenet = calc_actor_frenet_single(ego_traj_cart, actor_glb)
                     # add frenet position to actor_dicts
-                    actor['pos_d'] = actor_frenet['pos_d']
                     actor['pos_s'] = actor_frenet['pos_s']
+                    actor['pos_d'] = actor_frenet['pos_d']
 
                 # calc every actor's frenet velocity
                 for j in range(len(actor_history_seq)):
@@ -425,7 +437,7 @@ if __name__ == "__main__":
     json_fname = "label_20210609_123753_BB_split_000.json"
 
     # Config -- should be loaded from configs.json
-    configs = json.load(open('configs.json', 'r'))
+    configs = json.load(open('training_configs.json', 'r'))
 
     train_set, test_set = json_to_dataset(json_folder, json_fname, configs, sensor="camera")
     print("END")

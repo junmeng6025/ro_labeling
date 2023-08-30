@@ -11,7 +11,7 @@ import os
 import decimal
 
 ### DEBUG
-from debug.radar_filter import save_as_csv
+# from debug.radar_filter import save_as_csv
 
 TIME_STEP = 0.04  # Time span of MDF/ADTF signal scan
 NR_OF_RAW_MAINPATH_POINTS = 300
@@ -36,7 +36,7 @@ class MatLoader:
         self.actors_frenet_paths = []
         self.lanes = []
         self.high = 0
-        self.current = args.start_frame
+        self.current = args.gen_start_frame
         self.fpi = int(args.range / TIME_STEP)  # Frame per iteration: number of egoframes will be calculated in one iter
         self.sample_rate = args.sample_rate
         self.data_path = data_path
@@ -510,7 +510,7 @@ class EMLFromMat:
         :return: main path mock
         """
 
-        # convert XY points to world coordinates, x_wc - x world coord
+        # convert XY points to world coordinates, _wc: world coord
         x_wc = utils.local2world(self.position_x, self.prev_x, data, 0) # 'EML_PositionX'
         y_wc = utils.local2world(self.position_y, self.prev_y, data, 1) # 'EML_PositionY'
 
