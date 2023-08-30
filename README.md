@@ -10,7 +10,7 @@
 
     > Place ONLY ONE `.mat` recording in the `/data` folder every time.
 
-    <details>
+    <!-- <details>
     <summary>convert .dat recordings to .mat</summary>
 
     - use Cisco to connect remote discs (Intranet)  
@@ -31,7 +31,7 @@
       java -jar dat-reader-tool-assembly-0.0.1.jar D:\Records\dat\20210609_123753_BB_split_000.dat MLBevo_Gen2_Fx_Cluster_KMatrix_V8.15.10F_20180208_SEn.xml D:\Records\mat
       ```
 
-    </details>
+    </details> -->
 
     <br>
 
